@@ -1,0 +1,66 @@
+{
+  "name": "llm-poker",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A sophisticated poker tournament application with AI opponents powered by LLMs",
+  "author": "LLM Poker Team",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write 'src/**/*.{js,jsx,css,md}'",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zustand": "^4.4.7"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.55.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "jsdom": "^26.1.0",
+    "postcss": "^8.4.32",
+    "prettier": "^3.1.1",
+    "tailwindcss": "^3.3.6",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8",
+    "vitest": "^1.0.4"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "poker",
+    "ai",
+    "llm",
+    "game",
+    "react",
+    "texas-holdem",
+    "tournament"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/llm-poker"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/llm-poker/issues"
+  },
+  "homepage": "https://github.com/your-username/llm-poker#readme"
+}
