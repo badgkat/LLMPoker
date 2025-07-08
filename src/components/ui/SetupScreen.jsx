@@ -10,9 +10,10 @@ import LLMSettings from '../settings/LLMSettings.jsx';
  * @param {Object} props
  * @param {boolean} props.darkMode - Dark mode flag
  * @param {Function} props.onGameStart - Callback when game starts
+ * @param {Function} props.onToggleTheme - Callback when theme is toggled
  * @returns {JSX.Element}
  */
-const SetupScreen = ({ darkMode = false, onGameStart }) => {
+const SetupScreen = ({ darkMode = false, onGameStart, onToggleTheme }) => {
   const { playerSetup, setPlayerSetup } = useGameStore();
   
   // Debug logging
@@ -187,13 +188,13 @@ const SetupScreen = ({ darkMode = false, onGameStart }) => {
               Configure your players and start the game
             </p>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 md:space-x-3">
             <button
               onClick={() => setShowLLMSettings(true)}
-              className={`px-3 py-2 rounded-lg text-sm font-medium ${themeClasses.button} border flex items-center space-x-2`}
+              className={`px-2 md:px-3 py-2 rounded-lg text-xs md:text-sm font-medium ${themeClasses.button} border flex items-center space-x-1 md:space-x-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
             >
               <span>🧠</span>
-              <span>AI Config</span>
+              <span className="hidden sm:inline">AI Config</span>
               <span className={`text-xs px-2 py-1 rounded ${
                 llmConfig.provider === 'mock' 
                   ? 'bg-yellow-500 text-yellow-900' 
@@ -206,7 +207,7 @@ const SetupScreen = ({ darkMode = false, onGameStart }) => {
             </button>
             <ThemeToggle 
               darkMode={darkMode}
-              onToggle={() => {}} // This will be handled by parent
+              onToggle={onToggleTheme}
               size="md"
             />
           </div>
@@ -231,7 +232,7 @@ const SetupScreen = ({ darkMode = false, onGameStart }) => {
                   console.log('Input onChange triggered with value:', e.target.value);
                   updateHumanPlayerName(e.target.value);
                 }}
-                className={`${themeClasses.input} rounded-lg px-4 py-2 w-full border text-lg`}
+                className={`${themeClasses.input} rounded-lg px-4 py-2 w-full border text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 placeholder="Enter your name"
                 maxLength={20}
               />
@@ -247,11 +248,11 @@ const SetupScreen = ({ darkMode = false, onGameStart }) => {
               🤖 AI Opponents
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
               {playerSetup.aiPlayers.map((ai, index) => (
                 <div 
                   key={index} 
-                  className={`${themeClasses.playerCard} rounded-lg p-4 border transition-all duration-200 hover:shadow-lg`}
+                  className={`${themeClasses.playerCard} rounded-lg p-3 md:p-4 border transition-all duration-200 hover:shadow-lg`}
                 >
                   <div className="mb-3">
                     <label className={`block text-sm font-medium mb-1 ${themeClasses.subText}`}>
@@ -261,7 +262,7 @@ const SetupScreen = ({ darkMode = false, onGameStart }) => {
                       type="text"
                       value={ai.name}
                       onChange={(e) => updatePlayerName(index, e.target.value)}
-                      className={`${themeClasses.input} rounded px-3 py-2 w-full border text-sm`}
+                      className={`${themeClasses.input} rounded px-3 py-2 w-full border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                       maxLength={15}
                     />
                   </div>
@@ -273,11 +274,11 @@ const SetupScreen = ({ darkMode = false, onGameStart }) => {
                     <select 
                       value={ai.strategy}
                       onChange={(e) => updatePlayerStrategy(index, e.target.value)}
-                      className={`${themeClasses.input} rounded px-3 py-2 w-full border text-sm`}
+                      className={`${themeClasses.input} rounded px-3 py-2 w-full border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                       onMouseEnter={() => setSelectedAI(index)}
                       onMouseLeave={() => setSelectedAI(null)}
                     >
-                      {Object.entries(AI_STRATEGIES).map(([key, strategy]) => (
+                      {Object.entries(AI_STRATEGIES).map(([, strategy]) => (
                         <option key={strategy} value={strategy}>
                           {getStrategyIcon(strategy)} {strategy === 'randomly-determined' ? 'Random Strategy' : strategy.charAt(0).toUpperCase() + strategy.slice(1)}
                         </option>
@@ -306,10 +307,10 @@ const SetupScreen = ({ darkMode = false, onGameStart }) => {
             <h3 className={`text-lg font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               📚 Strategy Guide
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {Object.entries(AI_STRATEGIES).filter(([_, strategy]) => strategy !== AI_STRATEGIES.RANDOMLY_DETERMINED).map(([key, strategy]) => (
-                <div key={strategy} className={`p-3 rounded border ${darkMode ? 'border-gray-600 bg-gray-700/30' : 'border-gray-300 bg-gray-50'}`}>
-                  <div className={`font-medium text-sm flex items-center gap-2 mb-1 ${getStrategyColor(strategy)}`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
+              {Object.entries(AI_STRATEGIES).filter(([, strategy]) => strategy !== AI_STRATEGIES.RANDOMLY_DETERMINED).map(([, strategy]) => (
+                <div key={strategy} className={`p-2 md:p-3 rounded border ${darkMode ? 'border-gray-600 bg-gray-700/30' : 'border-gray-300 bg-gray-50'}`}>
+                  <div className={`font-medium text-xs md:text-sm flex items-center gap-2 mb-1 ${getStrategyColor(strategy)}`}>
                     <span>{getStrategyIcon(strategy)}</span>
                     <span className="capitalize">{strategy}</span>
                   </div>
@@ -326,8 +327,8 @@ const SetupScreen = ({ darkMode = false, onGameStart }) => {
             <h3 className={`text-lg font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               🎮 Game Rules
             </h3>
-            <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700/30' : 'bg-gray-50'} border ${darkMode ? 'border-gray-600' : 'border-gray-300'}`}>
-              <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 text-sm ${themeClasses.subText}`}>
+            <div className={`p-3 md:p-4 rounded-lg ${darkMode ? 'bg-gray-700/30' : 'bg-gray-50'} border ${darkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-sm ${themeClasses.subText}`}>
                 <div>
                   <div className="font-medium mb-2">💰 Betting Structure</div>
                   <ul className="space-y-1 text-xs">
@@ -355,7 +356,7 @@ const SetupScreen = ({ darkMode = false, onGameStart }) => {
             <button 
               onClick={startGame} 
               disabled={isStarting || !playerSetup.humanPlayer.name.trim()}
-              className={`px-8 py-4 text-xl font-bold rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${
+              className={`px-6 md:px-8 py-3 md:py-4 text-lg md:text-xl font-bold rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 isStarting 
                   ? 'bg-gray-500 cursor-not-allowed' 
                   : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white'

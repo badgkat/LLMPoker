@@ -45,23 +45,40 @@ p, h1, h2, h3, h4, h5, h6 {
   transition: all 0.3s ease-in-out;
 }
 
-/* Custom scrollbar for game log */
-.game-log::-webkit-scrollbar {
+/* Custom scrollbar for game log and other components */
+.game-log::-webkit-scrollbar,
+.scrollbar-thin::-webkit-scrollbar {
   width: 8px;
 }
 
-.game-log::-webkit-scrollbar-track {
+.game-log::-webkit-scrollbar-track,
+.scrollbar-thin::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.1);
   border-radius: 4px;
 }
 
-.game-log::-webkit-scrollbar-thumb {
+.game-log::-webkit-scrollbar-thumb,
+.scrollbar-thin::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.3);
   border-radius: 4px;
 }
 
-.game-log::-webkit-scrollbar-thumb:hover {
+.game-log::-webkit-scrollbar-thumb:hover,
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.5);
+}
+
+/* Dark mode scrollbar */
+.dark .scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 /* Loading animations */

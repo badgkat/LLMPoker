@@ -112,17 +112,21 @@ export const useGameStore = create(
 
     addLogEntry: (message, isHandStart = false) => set((state) => {
       if (isHandStart) {
+        // Always move current hand to history if it has entries, and use the previous hand number
+        const previousHandNumber = state.gameState.handNumber > 0 ? state.gameState.handNumber - 1 : 0;
+        const updatedHistory = state.gameLog.currentHand.length > 0 
+          ? [...state.gameLog.handHistory, { 
+              handNumber: previousHandNumber, 
+              log: [...state.gameLog.currentHand], // Create a copy
+              completed: true 
+            }]
+          : state.gameLog.handHistory;
+
         return {
           gameLog: {
             ...state.gameLog,
             currentHand: [{ message, timestamp: Date.now() }],
-            handHistory: state.gameLog.currentHand.length > 0 
-              ? [...state.gameLog.handHistory, { 
-                  handNumber: state.gameState.handNumber, 
-                  log: state.gameLog.currentHand,
-                  completed: true 
-                }]
-              : state.gameLog.handHistory
+            handHistory: updatedHistory
           }
         };
       } else {

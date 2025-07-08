@@ -13,11 +13,18 @@ export const useGameFlow = () => {
   const gameState = useGameState();
   const { 
     setGameState, 
-    addLogEntry, 
     setHandSummary,
-    setAiMemories,
     resetGame 
   } = useGameStore();
+
+  // Create stable references to store functions to avoid dependency issues
+  const addLogEntry = useCallback((message, isHandStart = false) => {
+    useGameStore.getState().addLogEntry(message, isHandStart);
+  }, []);
+
+  const setAiMemories = useCallback((memories) => {
+    useGameStore.getState().setAiMemories(memories);
+  }, []);
 
   /**
    * Initialize game engine event listeners
@@ -170,7 +177,7 @@ export const useGameFlow = () => {
     return () => {
       gameEngine.eventListeners.clear();
     };
-  }, [addLogEntry, setHandSummary, setAiMemories]);
+  }, [addLogEntry, setAiMemories]); // Stable dependencies
 
   /**
    * Check for game over conditions

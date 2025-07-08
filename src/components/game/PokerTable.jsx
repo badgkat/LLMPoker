@@ -126,22 +126,22 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
       </header>
 
       {/* Main Game Area - Takes remaining space above bottom UI */}
-      <main className="flex-1 relative" style={{ minHeight: '400px' }}>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative w-full h-full max-w-5xl max-h-4xl" style={{ padding: '60px' }}>
+      <main className="flex-1 relative min-h-[400px] md:min-h-[500px] lg:min-h-[600px]">
+        <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8 lg:p-16">
+          <div className="relative w-full h-full max-w-5xl max-h-4xl">
             
             {/* Table Felt */}
-            <div className="absolute inset-6 bg-gradient-to-br from-green-700 to-green-900 rounded-full border-8 border-amber-600 shadow-2xl">
-              <div className="absolute inset-4 border-2 border-amber-400/30 rounded-full"></div>
+            <div className="absolute inset-4 md:inset-6 bg-gradient-to-br from-green-700 to-green-900 rounded-full border-4 md:border-8 border-amber-600 shadow-2xl">
+              <div className="absolute inset-2 md:inset-4 border-2 border-amber-400/30 rounded-full"></div>
               
               {/* Table Logo */}
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-10">
-                <div className="text-6xl">🎰</div>
+                <div className="text-2xl md:text-4xl lg:text-6xl">🎰</div>
               </div>
             </div>
 
             {/* Dealer Position */}
-            <div className="absolute top-2 left-1/2 transform -translate-x-1/2">
+            <div className="absolute top-1 md:top-2 left-1/2 transform -translate-x-1/2">
               <div className={`${themeClasses.card} rounded-lg px-2 py-1 border backdrop-blur-sm shadow-lg`}>
                 <div className={`text-center text-xs font-bold ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   🎩 Dealer
@@ -172,8 +172,8 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
 
             {/* Side Pot Display (if applicable) */}
             {gameState.sidePots && gameState.sidePots.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-                <div className={`${themeClasses.card} rounded-lg px-3 py-2 border backdrop-blur-sm shadow-lg`}>
+              <div className="absolute bottom-2 md:bottom-4 left-1/2 transform -translate-x-1/2">
+                <div className={`${themeClasses.card} rounded-lg px-2 md:px-3 py-1 md:py-2 border backdrop-blur-sm shadow-lg`}>
                   <div className={`text-xs font-bold text-center mb-1 ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
                     Side Pots
                   </div>
@@ -189,9 +189,9 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
             )}
 
             {/* Betting Round Indicator */}
-            <div className="absolute top-4 right-4">
-              <div className={`${themeClasses.card} rounded-lg px-3 py-2 border backdrop-blur-sm shadow-lg`}>
-                <div className={`text-sm font-bold text-center ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+            <div className="absolute top-2 md:top-4 right-2 md:right-4">
+              <div className={`${themeClasses.card} rounded-lg px-2 md:px-3 py-1 md:py-2 border backdrop-blur-sm shadow-lg`}>
+                <div className={`text-xs md:text-sm font-bold text-center ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
                   {gameState.bettingRound.toUpperCase()}
                 </div>
                 <div className={`text-xs text-center ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -204,8 +204,8 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
             </div>
 
             {/* Blinds Indicator */}
-            <div className="absolute bottom-4 right-4">
-              <div className={`${themeClasses.card} rounded-lg px-3 py-2 border backdrop-blur-sm shadow-lg`}>
+            <div className="absolute bottom-2 md:bottom-4 right-2 md:right-4">
+              <div className={`${themeClasses.card} rounded-lg px-2 md:px-3 py-1 md:py-2 border backdrop-blur-sm shadow-lg`}>
                 <div className={`text-xs font-bold text-center mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Blinds
                 </div>
@@ -220,11 +220,11 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
       </main>
 
       {/* Bottom UI Panel - Game Log and Action Panel Side by Side */}
-      <footer className="flex-shrink-0 p-3 border-t border-amber-600/30 bg-black/20 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto flex gap-4" style={{ minHeight: '280px', height: 'auto' }}>
+      <footer className="flex-shrink-0 p-2 md:p-3 border-t border-amber-600/30 bg-black/20 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-2 md:gap-4 min-h-[280px] h-auto">
           
           {/* Game Log - Left Side */}
-          <div className="flex-1 max-w-md">
+          <div className="flex-1 max-w-full md:max-w-md">
             <GameLog 
               darkMode={darkMode}
               maxHeight={260}
@@ -232,7 +232,7 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
           </div>
 
           {/* Action Panel - Right Side */}
-          <div className="flex-1 max-w-md" style={{ minHeight: '260px' }}>
+          <div className="flex-1 max-w-full md:max-w-md min-h-[260px]">
             <ActionPanel 
               darkMode={darkMode}
             />

@@ -17,22 +17,19 @@ const GameLog = ({ darkMode = false, maxHeight = 300 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [autoScroll, setAutoScroll] = useState(true);
   
-  const currentHandRef = useRef(null);
   const logContainerRef = useRef(null);
 
   // Auto-scroll to bottom when new entries are added
   useEffect(() => {
-    if (autoScroll && currentHandRef.current) {
-      currentHandRef.current.scrollTop = currentHandRef.current.scrollHeight;
-    }
-  }, [gameLog.currentHand, autoScroll]);
-
-  // Auto-scroll main container when switching hands
-  useEffect(() => {
     if (autoScroll && logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+      // Use requestAnimationFrame for smooth scrolling
+      window.requestAnimationFrame(() => {
+        if (logContainerRef.current) {
+          logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+        }
+      });
     }
-  }, [gameLog.handHistory, autoScroll]);
+  }, [gameLog.currentHand, gameLog.handHistory, autoScroll]);
 
   const handleScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -181,11 +178,12 @@ const GameLog = ({ darkMode = false, maxHeight = 300 }) => {
             <button
               key={key}
               onClick={() => setFilter(key)}
-              className={`px-2 py-1 text-xs rounded transition-colors ${
+              className={`px-2 py-1 text-xs rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 filter === key ? themeClasses.activeButton : themeClasses.button
               }`}
             >
-              {icon} {label}
+              <span className="md:hidden">{icon}</span>
+              <span className="hidden md:inline">{icon} {label}</span>
             </button>
           ))}
         </div>
@@ -194,7 +192,7 @@ const GameLog = ({ darkMode = false, maxHeight = 300 }) => {
       {/* Log Content */}
       <div 
         ref={logContainerRef}
-        className="flex-1 overflow-y-auto space-y-2"
+        className="flex-1 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
         style={{ maxHeight: `${maxHeight}px` }}
         onScroll={handleScroll}
       >
@@ -203,10 +201,7 @@ const GameLog = ({ darkMode = false, maxHeight = 300 }) => {
           <div className={`text-xs font-semibold mb-1 ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
             🎯 Current Hand #{gameState.handNumber}
           </div>
-          <div 
-            ref={currentHandRef}
-            className="space-y-1 max-h-32 overflow-y-auto"
-          >
+          <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
             {filterEntries(gameLog.currentHand).slice(-10).map((entry, index) => (
               <div key={`current-${gameState.handNumber}-${index}-${entry.timestamp || index}`} className={`text-xs leading-relaxed ${getMessageClass(entry.message)}`}>
                 <span className="inline-block w-4 text-center mr-1">
@@ -246,7 +241,7 @@ const GameLog = ({ darkMode = false, maxHeight = 300 }) => {
             </button>
             
             {gameLog.expandedHands.has(hand.handNumber) && (
-              <div className="p-2 border-t border-gray-600/30 max-h-32 overflow-y-auto">
+              <div className="p-2 border-t border-gray-600/30 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
                 <div className="space-y-1">
                   {filterEntries(hand.log).map((entry, entryIndex) => (
                     <div key={`history-${hand.handNumber}-${entryIndex}-${entry.timestamp || entryIndex}`} className={`text-xs leading-relaxed ${getMessageClass(entry.message)}`}>

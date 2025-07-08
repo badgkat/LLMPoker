@@ -19,9 +19,6 @@ const PokerApp = () => {
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState(null);
 
-  // Initialize game flow hook
-  useGameFlow();
-
   /**
    * Handle theme toggle
    */
@@ -130,6 +127,7 @@ const PokerApp = () => {
         <SetupScreen
           darkMode={darkMode}
           onGameStart={handleGameStart}
+          onToggleTheme={handleToggleTheme}
         />
       );
     }
