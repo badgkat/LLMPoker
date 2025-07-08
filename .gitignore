@@ -104,3 +104,6 @@ logs
 
 # Local Netlify folder
 .netlify
+
+#Claude TS folder
+.claude/errorScreenShots

@@ -69,7 +69,7 @@ const ActionPanel = ({ darkMode = false }) => {
   }, [setBetAmount]);
 
   const getActionButtonStyle = useCallback((action) => {
-    const baseStyle = "px-3 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 transform hover:scale-105 shadow-lg";
+    const baseStyle = "px-3 py-2 rounded-lg font-bold text-sm transition-all duration-200 transform hover:scale-105 shadow-lg";
     
     switch (action) {
       case PLAYER_ACTIONS.FOLD:
@@ -182,15 +182,15 @@ const ActionPanel = ({ darkMode = false }) => {
 
   // Main action panel for human player's turn
   return (
-    <div className={`${themeClasses.card} rounded-xl p-3 border h-full flex flex-col`}>
-      <h3 className={`text-lg font-bold mb-2 text-center ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
+    <div className={`${themeClasses.card} rounded-xl p-3 border h-full flex flex-col overflow-hidden`} style={{ minHeight: '250px', maxHeight: '260px' }}>
+      <h3 className={`text-base font-bold mb-2 text-center ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
         🎯 Your Turn
       </h3>
       
       {/* Bet Amount Slider */}
       {isActionAvailable(PLAYER_ACTIONS.RAISE) && (
-        <div className="mb-3 flex-shrink-0">
-          <label className={`block text-sm font-medium mb-2 ${themeClasses.subText}`}>
+        <div className="mb-2 flex-shrink-0">
+          <label className={`block text-sm font-medium mb-1 ${themeClasses.subText}`}>
             Raise Amount: {localBetAmount.toLocaleString()}
           </label>
           <input
@@ -212,7 +212,7 @@ const ActionPanel = ({ darkMode = false }) => {
 
       {/* Quick Amount Buttons for Raises */}
       {isActionAvailable(PLAYER_ACTIONS.RAISE) && (
-        <div className="mb-3 flex-shrink-0">
+        <div className="mb-2 flex-shrink-0">
           <div className="grid grid-cols-3 gap-1">
             {[
               { label: 'Min', amount: getMinRaiseAmount() },
@@ -233,7 +233,7 @@ const ActionPanel = ({ darkMode = false }) => {
       )}
 
       {/* Game Info */}
-      <div className={`mb-3 text-xs ${themeClasses.subText} flex-shrink-0`}>
+      <div className={`mb-2 text-xs ${themeClasses.subText} flex-shrink-0`}>
         <div className="grid grid-cols-2 gap-2">
           <div>Pot: {gameState.pot.toLocaleString()}</div>
           <div>To Call: {getCallAmount().toLocaleString()}</div>
@@ -244,7 +244,7 @@ const ActionPanel = ({ darkMode = false }) => {
       
       {/* Action Buttons */}
       <div className="flex-1 flex flex-col justify-end">
-        <div className="grid grid-cols-2 gap-2 mb-2">
+        <div className="grid grid-cols-2 gap-2">
           {availableActions.map(action => (
             <button 
               key={action} 

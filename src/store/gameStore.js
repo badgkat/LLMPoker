@@ -33,10 +33,10 @@ const initialGameState = {
 };
 
 const initialPlayerSetup = {
-  humanPlayer: { name: 'You', seat: 0 },
+  humanPlayer: { name: 'You' },  // Remove seat property - it will be assigned by game engine
   aiPlayers: Array(8).fill(null).map((_, i) => ({
     name: `AI Player ${i + 1}`,
-    seat: i + 1,
+    // Remove seat property - it will be assigned by game engine
     strategy: 'randomly-determined'
   }))
 };
@@ -59,13 +59,25 @@ export const useGameStore = create(
     darkMode: false,
 
     // Actions
-    setGameState: (updates) => set((state) => ({
-      gameState: { ...state.gameState, ...updates }
-    })),
+    setGameState: (updates) => {
+      console.log('GameStore.setGameState called with updates:', updates);
+      set((state) => {
+        const newGameState = { ...state.gameState, ...updates };
+        console.log('GameStore.setGameState previous state:', state.gameState);
+        console.log('GameStore.setGameState new state:', newGameState);
+        return { gameState: newGameState };
+      });
+    },
 
-    setPlayerSetup: (updates) => set((state) => ({
-      playerSetup: { ...state.playerSetup, ...updates }
-    })),
+    setPlayerSetup: (updates) => {
+      console.log('GameStore.setPlayerSetup called with updates:', updates);
+      set((state) => {
+        const newPlayerSetup = { ...state.playerSetup, ...updates };
+        console.log('GameStore.setPlayerSetup previous state:', state.playerSetup);
+        console.log('GameStore.setPlayerSetup new state:', newPlayerSetup);
+        return { playerSetup: newPlayerSetup };
+      });
+    },
 
     setGameLog: (updates) => set((state) => ({
       gameLog: { ...state.gameLog, ...updates }

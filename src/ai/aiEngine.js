@@ -25,17 +25,31 @@ export class AIEngine {
    * @returns {Promise<AIDecision>} AI decision
    */
   async getAIDecision(player, gameState, gameContext) {
+    console.log(`===== AI DECISION START: ${player.name} =====`);
+    console.log('Player:', player);
+    console.log('Game state:', gameState);
+    console.log('Game context:', gameContext);
+    
     try {
       // Try LLM service first if available
       if (this.isLLMAvailable()) {
-        return await this.getLLMAIDecision(player, gameState, gameContext);
+        console.log('Using LLM service for AI decision');
+        const decision = await this.getLLMAIDecision(player, gameState, gameContext);
+        console.log('LLM decision:', decision);
+        return decision;
       }
       
-      // Fall back to rule-based AI
-      return this.getFallbackAIDecision(player, gameState);
+      // Use rule-based AI if LLM is not available
+      console.log('Using rule-based AI for decision');
+      const decision = this.getFallbackAIDecision(player, gameState);
+      console.log('Rule-based decision:', decision);
+      return decision;
     } catch (error) {
-      console.error('AI decision error:', error);
-      return this.getEmergencyDecision(player, gameState);
+      console.error(`AI_DECISION_ERROR for ${player.name}:`, error);
+      console.error('Error stack:', error.stack);
+      
+      // DO NOT hide the error with emergency fallback - let it bubble up
+      throw error;
     }
   }
 
@@ -64,6 +78,16 @@ export class AIEngine {
       gameState.bigBlind
     );
 
+    console.log(`AI ${player.name} available actions:`, availableActions);
+    console.log(`AI ${player.name} current situation:`, {
+      currentBet: player.currentBet,
+      gameCurrentBet: gameState.currentBet,
+      chips: player.chips,
+      callAmount: gameState.currentBet - player.currentBet,
+      isActive: player.isActive,
+      isAllIn: player.isAllIn
+    });
+
     const prompt = this.buildLLMPrompt(
       player, 
       gameState, 
@@ -80,9 +104,17 @@ export class AIEngine {
       reasoning: response.reasoning
     };
     
+    console.log(`AI ${player.name} decision:`, decision);
+    console.log(`AI ${player.name} available actions were:`, availableActions);
+    
     // Validate decision
     if (!availableActions.includes(decision.action)) {
-      throw new Error(`Invalid action: ${decision.action}`);
+      console.error(`AI ${player.name} ACTION VALIDATION FAILED:`);
+      console.error(`- Decision action: "${decision.action}"`);
+      console.error(`- Available actions: [${availableActions.join(', ')}]`);
+      console.error(`- Player state:`, player);
+      console.error(`- Game state:`, gameState);
+      throw new Error(`Invalid action: ${decision.action}. Available actions: [${availableActions.join(', ')}]`);
     }
     
     // Store this decision in memory

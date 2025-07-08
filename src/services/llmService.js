@@ -128,12 +128,19 @@ export class LLMService {
       await this.initialize();
     }
 
+    console.log('LLM Service making decision with provider:', this.config.provider);
+    console.log('LLM Service prompt excerpt:', prompt.substring(0, 200) + '...');
+
     try {
       const response = await this.makeRequest(prompt);
-      return this.parseResponse(response);
+      const decision = this.parseResponse(response);
+      console.log('LLM Service returning decision:', decision);
+      return decision;
     } catch (error) {
       console.error('LLM request failed:', error);
-      return this.getFallbackResponse();
+      const fallback = this.getFallbackResponse();
+      console.log('LLM Service returning fallback:', fallback);
+      return fallback;
     }
   }
 
@@ -272,15 +279,95 @@ export class LLMService {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
     
-    // Return mock poker decisions
-    const mockDecisions = [
-      { action: 'fold', amount: 0, reasoning: 'Mock: Weak hand, folding' },
-      { action: 'call', amount: 0, reasoning: 'Mock: Calling to see more cards' },
-      { action: 'check', amount: 0, reasoning: 'Mock: Checking for free card' },
-      { action: 'raise', amount: 400, reasoning: 'Mock: Strong hand, raising for value' }
-    ];
+    // Extract available actions from the prompt
+    const availableActionsMatch = prompt.match(/Available actions: (.+)/);
+    let availableActions = ['fold', 'call']; // default fallback
+    
+    if (availableActionsMatch) {
+      availableActions = availableActionsMatch[1].split(', ').map(action => action.trim());
+    }
+    
+    console.log('Mock LLM detected available actions:', availableActions);
+    
+    // Extract game context information from prompt for better decision making
+    // Note: Values may have commas due to toLocaleString(), so we need to handle that
+    const callAmountMatch = prompt.match(/Current bet to call: ([\d,]+)/);
+    const potSizeMatch = prompt.match(/Pot size: ([\d,]+)/);
+    const playerChipsMatch = prompt.match(/Your chips: ([\d,]+)/);
+    const minRaiseMatch = prompt.match(/minimum raise to ([\d,]+)/);
+    
+    // Parse numbers, removing commas
+    const callAmount = callAmountMatch ? parseInt(callAmountMatch[1].replace(/,/g, '')) : 0;
+    const potSize = potSizeMatch ? parseInt(potSizeMatch[1].replace(/,/g, '')) : 1000;
+    const playerChips = playerChipsMatch ? parseInt(playerChipsMatch[1].replace(/,/g, '')) : 5000;
+    const minRaise = minRaiseMatch ? parseInt(minRaiseMatch[1].replace(/,/g, '')) : Math.max(callAmount + 100, 200);
+    
+    console.log('Mock LLM extracted context:', { callAmount, potSize, playerChips, minRaise });
+    
+    // The call amount is what we need to ADD to match the current bet
+    // But we need to know the actual current bet level in the game
+    // Since we don't have access to player.currentBet in the mock, we'll estimate
+    // currentBet = player.currentBet + callAmount
+    // For simplicity, assume player has bet very little compared to callAmount
+    const estimatedCurrentBet = callAmount; // Rough estimate of the current bet level
+    
+    // Create mock decisions that are contextually appropriate
+    const mockDecisions = [];
+    
+    if (availableActions.includes('fold')) {
+      mockDecisions.push({ action: 'fold', amount: 0, reasoning: 'Mock: Weak hand, folding' });
+    }
+    
+    if (availableActions.includes('call')) {
+      mockDecisions.push({ action: 'call', amount: 0, reasoning: 'Mock: Calling to see more cards' });
+    }
+    
+    if (availableActions.includes('check')) {
+      mockDecisions.push({ action: 'check', amount: 0, reasoning: 'Mock: Checking for free card' });
+    }
+    
+    if (availableActions.includes('raise')) {
+      // Calculate valid raise amounts as TOTAL bet amounts
+      // The raise amount must be: currentBet + minRaiseSize <= amount <= player.currentBet + player.chips
+      const minRaiseSize = Math.max(200, Math.floor(potSize * 0.1)); // Minimum 200 or 10% of pot
+      const currentGameBet = estimatedCurrentBet; // Current bet level in the game
+      const minRaiseTotal = currentGameBet + minRaiseSize; // Minimum total bet for a raise
+      
+      // Calculate reasonable raise amounts
+      const validRaiseAmounts = [
+        minRaiseTotal, // Minimum raise
+        Math.min(currentGameBet + Math.floor(potSize * 0.5), playerChips), // Half pot raise
+        Math.min(currentGameBet + potSize, playerChips), // Full pot raise
+        Math.min(currentGameBet + Math.floor(potSize * 0.75), playerChips) // 3/4 pot raise
+      ].filter(amount => amount >= minRaiseTotal && amount <= playerChips);
+      
+      console.log('Mock LLM raise calculation:', {
+        currentGameBet,
+        minRaiseSize,
+        minRaiseTotal,
+        playerChips,
+        validRaiseAmounts
+      });
+      
+      if (validRaiseAmounts.length > 0) {
+        const raiseAmount = validRaiseAmounts[Math.floor(Math.random() * validRaiseAmounts.length)];
+        mockDecisions.push({ action: 'raise', amount: raiseAmount, reasoning: `Mock: Strong hand, raising to ${raiseAmount}` });
+      } else {
+        console.log('Mock LLM: No valid raise amounts, will not include raise action');
+      }
+    }
+    
+    if (availableActions.includes('all-in')) {
+      mockDecisions.push({ action: 'all-in', amount: 0, reasoning: 'Mock: Going all-in with strong hand' });
+    }
+    
+    // If no valid decisions (shouldn't happen), default to fold
+    if (mockDecisions.length === 0) {
+      mockDecisions.push({ action: 'fold', amount: 0, reasoning: 'Mock: Emergency fold - no valid actions detected' });
+    }
     
     const decision = mockDecisions[Math.floor(Math.random() * mockDecisions.length)];
+    console.log('Mock LLM decision:', decision);
     return JSON.stringify(decision);
   }
 

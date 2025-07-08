@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Human Player Data</title>
+</head>
+<body>
+    <h1>Debug Human Player Data Flow</h1>
+    
+    <h2>Instructions:</h2>
+    <ol>
+        <li>Open Chrome DevTools (F12)</li>
+        <li>Go to Console tab</li>
+        <li>Navigate to http://localhost:3000</li>
+        <li>Enter your name in the input field</li>
+        <li>Click "Start Tournament"</li>
+        <li>Watch the console for detailed logs</li>
+    </ol>
+    
+    <h2>What to Look For:</h2>
+    <ul>
+        <li><strong>SetupScreen logs:</strong> Should show playerSetup object with humanPlayer.name</li>
+        <li><strong>Input onChange:</strong> Should log when typing in the name field</li>
+        <li><strong>GameEngine logs:</strong> Should show seat assignment process</li>
+        <li><strong>Player creation:</strong> Should show human player object with assigned seat</li>
+        <li><strong>Validation errors:</strong> Should show clear error messages if something fails</li>
+    </ul>
+    
+    <h2>Expected Flow:</h2>
+    <pre>
+1. Initial playerSetup: { humanPlayer: { name: 'You' }, aiPlayers: [...] }
+2. User types name: onChange logs each keystroke
+3. Updated playerSetup: { humanPlayer: { name: 'UserName' }, aiPlayers: [...] }
+4. Click Start Tournament
+5. Validation passes
+6. Seat assignment: shuffledSeats = [3,1,7,2,0,8,4,5,6] (example)
+7. Human player created: { id: 0, name: 'UserName', seat: 3, ... }
+8. AI players created with remaining seats
+9. Game starts successfully
+    </pre>
+    
+    <p><strong>If you see issues:</strong> Check the console for specific error messages. The new validation should provide clear feedback about what's wrong.</p>
+</body>
+</html>

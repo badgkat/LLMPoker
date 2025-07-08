@@ -74,30 +74,53 @@ export const usePlayerActions = () => {
    */
   const processAIAction = useCallback(async (player) => {
     if (!player || !player.isActive || player.isAllIn || player.isHuman) {
+      console.log('AI action skipped - player invalid or not eligible:', {
+        player: player?.name,
+        isActive: player?.isActive,
+        isAllIn: player?.isAllIn,
+        isHuman: player?.isHuman
+      });
       return false;
     }
 
+    console.log(`===== AI ACTION START: ${player.name} =====`);
+    console.log('Player state:', player);
+    console.log('Game state for AI:', gameState);
+    
     try {
       // Get game context for AI
       const gameContext = getGameContextForAI(player);
+      console.log('Game context for AI:', gameContext);
       
       // Get AI decision
+      console.log('Calling aiEngine.getAIDecision...');
       const decision = await aiEngine.getAIDecision(player, gameState, gameContext);
+      console.log('AI decision received:', decision);
       
-      if (decision && decision.action) {
-        // Log AI reasoning for debugging
-        addLogEntry(`${player.name} thinking: ${decision.reasoning || 'No reasoning provided'}`);
-        
-        // Execute the AI's decision
-        return await executePlayerAction(decision.action, decision.amount || 0);
-      } else {
-        // Fallback to fold if no valid decision
-        return await executePlayerAction(PLAYER_ACTIONS.FOLD, 0);
+      if (!decision) {
+        throw new Error(`AI_ACTION_ERROR: No decision returned from AI engine for ${player.name}`);
       }
+      
+      if (!decision.action) {
+        throw new Error(`AI_ACTION_ERROR: No action in decision for ${player.name}`);
+      }
+      
+      // Log AI reasoning for debugging
+      addLogEntry(`${player.name} thinking: ${decision.reasoning || 'No reasoning provided'}`);
+      
+      // Execute the AI's decision
+      console.log(`Executing AI action: ${decision.action} with amount: ${decision.amount || 0}`);
+      const result = await executePlayerAction(decision.action, decision.amount || 0);
+      console.log(`AI action result: ${result}`);
+      console.log(`===== AI ACTION END: ${player.name} =====`);
+      
+      return result;
     } catch (error) {
-      console.error('AI action error:', error);
-      // Emergency fallback
-      return await executePlayerAction(PLAYER_ACTIONS.FOLD, 0);
+      console.error(`AI_ACTION_ERROR for ${player.name}:`, error);
+      console.error('Error stack:', error.stack);
+      
+      // DO NOT hide the error with a fallback - let it bubble up
+      throw error;
     }
   }, [gameState, executePlayerAction, addLogEntry]);
 
@@ -110,48 +133,71 @@ export const usePlayerActions = () => {
       const activePlayers = newGameState.players.filter(p => p.isActive);
       const playersWhoCanAct = activePlayers.filter(p => !p.isAllIn);
       
-      // Check if betting round is complete
-      if (gameEngine.isBettingComplete(newGameState)) {
-        if (activePlayers.length <= 1) {
-          // Hand ends early
-          const finalState = gameEngine.endHandEarly(newGameState, activePlayers[0]);
-          setGameState(finalState);
-          
-          // Start next hand after delay
-          setTimeout(() => {
-            startNextHand(finalState);
-          }, 3000);
-        } else {
-          // Advance to next phase
-          setTimeout(() => {
-            const nextPhaseState = gameEngine.advanceToNextPhase(newGameState);
-            setGameState(nextPhaseState);
-          }, 1000);
+      console.log('===== GAME FLOW DECISION =====');
+      console.log('Active players:', activePlayers.length);
+      console.log('Players who can act:', playersWhoCanAct.length);
+      console.log('Betting complete:', gameEngine.isBettingComplete(newGameState));
+      
+      // PRIORITY 1: Handle early hand end (only one player left)
+      if (activePlayers.length <= 1) {
+        console.log('Hand ending early - only one active player left');
+        const finalState = gameEngine.endHandEarly(newGameState, activePlayers[0]);
+        setGameState(finalState);
+        
+        // Start next hand after delay
+        setTimeout(() => {
+          startNextHand(finalState);
+        }, 3000);
+        return;
+      }
+      
+      // PRIORITY 2: Handle all-in situation (everyone is all-in)
+      if (playersWhoCanAct.length === 0) {
+        console.log('All remaining players are all-in - handling all-in situation');
+        
+        // Prevent multiple concurrent all-in processing
+        if (newGameState.processingPhase) {
+          console.log('Already processing all-in situation, skipping');
+          return;
         }
-      } else if (playersWhoCanAct.length === 0) {
-        // Everyone who can act is all-in
-        addLogEntry("All remaining players are all-in - advancing to next phase");
+        
+        addLogEntry("All remaining players are all-in - dealing remaining cards and going to showdown");
+        
+        // Set processing flag to prevent concurrent calls
+        setGameState({ ...newGameState, processingPhase: true });
+        
+        setTimeout(() => {
+          const showdownState = gameEngine.handleAllInSituation(newGameState);
+          setGameState(showdownState);
+        }, 1500);
+        return;
+      }
+      
+      // PRIORITY 3: Check if betting round is complete (normal flow)
+      if (gameEngine.isBettingComplete(newGameState)) {
+        console.log('Betting round complete - advancing to next phase');
+        setTimeout(() => {
+          const nextPhaseState = gameEngine.advanceToNextPhase(newGameState);
+          setGameState(nextPhaseState);
+        }, 1000);
+        return;
+      }
+      
+      // PRIORITY 4: Continue with next player
+      const nextPlayer = gameEngine.getNextPlayer(newGameState);
+      if (nextPlayer === -1) {
+        console.log('No valid next player - advancing phase');
         setTimeout(() => {
           const nextPhaseState = gameEngine.advanceToNextPhase(newGameState);
           setGameState(nextPhaseState);
         }, 1000);
       } else {
-        // Get next player
-        const nextPlayer = gameEngine.getNextPlayer(newGameState);
-        if (nextPlayer === -1) {
-          // No valid next player, advance phase
-          setTimeout(() => {
-            const nextPhaseState = gameEngine.advanceToNextPhase(newGameState);
-            setGameState(nextPhaseState);
-          }, 1000);
-        } else {
-          // Move to next player
-          setGameState({ 
-            ...newGameState, 
-            activePlayer: nextPlayer, 
-            processingPhase: false 
-          });
-        }
+        console.log(`Moving to next player: ${nextPlayer}`);
+        setGameState({ 
+          ...newGameState, 
+          activePlayer: nextPlayer, 
+          processingPhase: false 
+        });
       }
     } catch (error) {
       console.error('Error in game flow:', error);

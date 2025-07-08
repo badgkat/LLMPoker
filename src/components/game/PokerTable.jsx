@@ -22,20 +22,25 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
 
   // Handle AI player actions
   useEffect(() => {
-    const handleAITurn = async () => {
-      if (currentPlayer && !currentPlayer.isHuman && currentPlayer.isActive && !currentPlayer.isAllIn && !gameState.processingPhase) {
-        const delay = 1500 + Math.random() * 1000; // Random delay for realism
-        
-        const timer = setTimeout(async () => {
+    if (gameState.phase === 'playing' && currentPlayer && !currentPlayer.isHuman && currentPlayer.isActive && !currentPlayer.isAllIn && !gameState.processingPhase) {
+      const delay = 1500 + Math.random() * 1000; // Random delay for realism
+      
+      const timer = setTimeout(async () => {
+        try {
+          console.log(`Attempting to process AI action for ${currentPlayer.name}`);
           await processAIAction(currentPlayer);
-        }, delay);
+        } catch (error) {
+          console.error('AI ACTION PROCESSING ERROR:', error);
+          console.error('Error stack:', error.stack);
+          console.error('Current player:', currentPlayer);
+          console.error('Game state:', gameState);
+          
+          // Let the error bubble up to be handled by error boundary
+          throw error;
+        }
+      }, delay);
 
-        return () => clearTimeout(timer);
-      }
-    };
-
-    if (gameState.phase === 'playing') {
-      return handleAITurn();
+      return () => clearTimeout(timer);
     }
   }, [gameState.activePlayer, gameState.phase, gameState.bettingRound, gameState.processingPhase, currentPlayer, processAIAction]);
 
@@ -216,18 +221,18 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
 
       {/* Bottom UI Panel - Game Log and Action Panel Side by Side */}
       <footer className="flex-shrink-0 p-3 border-t border-amber-600/30 bg-black/20 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto flex gap-4 h-64">
+        <div className="max-w-7xl mx-auto flex gap-4" style={{ minHeight: '280px', height: 'auto' }}>
           
           {/* Game Log - Left Side */}
           <div className="flex-1 max-w-md">
             <GameLog 
               darkMode={darkMode}
-              maxHeight={240}
+              maxHeight={260}
             />
           </div>
 
           {/* Action Panel - Right Side */}
-          <div className="flex-1 max-w-md">
+          <div className="flex-1 max-w-md" style={{ minHeight: '260px' }}>
             <ActionPanel 
               darkMode={darkMode}
             />

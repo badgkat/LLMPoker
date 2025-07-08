@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import { useGameStore } from '../../store/gameStore.js';
-import { gameEngine } from '../../utils/gameEngine.js';
 import { AI_STRATEGIES, AI_STRATEGY_DESCRIPTIONS } from '../../constants/aiConstants.js';
 import { llmService } from '../../services/llmService.js';
 import ThemeToggle from './ThemeToggle.jsx';
@@ -14,25 +13,33 @@ import LLMSettings from '../settings/LLMSettings.jsx';
  * @returns {JSX.Element}
  */
 const SetupScreen = ({ darkMode = false, onGameStart }) => {
-  const { playerSetup, setPlayerSetup, setGameState, resetGame } = useGameStore();
+  const { playerSetup, setPlayerSetup } = useGameStore();
+  
+  // Debug logging
+  console.log('SetupScreen render - playerSetup:', playerSetup);
   const [isStarting, setIsStarting] = useState(false);
   const [selectedAI, setSelectedAI] = useState(null);
   const [showLLMSettings, setShowLLMSettings] = useState(false);
   const [llmConfig, setLLMConfig] = useState(llmService.getConfig());
 
   const updatePlayerName = useCallback((index, name) => {
+    if (!playerSetup?.aiPlayers) return;
     const updatedPlayers = [...playerSetup.aiPlayers];
     updatedPlayers[index] = { ...updatedPlayers[index], name };
     setPlayerSetup({ ...playerSetup, aiPlayers: updatedPlayers });
   }, [playerSetup, setPlayerSetup]);
 
   const updatePlayerStrategy = useCallback((index, strategy) => {
+    if (!playerSetup?.aiPlayers) return;
     const updatedPlayers = [...playerSetup.aiPlayers];
     updatedPlayers[index] = { ...updatedPlayers[index], strategy };
     setPlayerSetup({ ...playerSetup, aiPlayers: updatedPlayers });
   }, [playerSetup, setPlayerSetup]);
 
   const updateHumanPlayerName = useCallback((name) => {
+    if (!playerSetup?.humanPlayer) return;
+    
+    console.log('Updating human player name from:', playerSetup.humanPlayer.name, 'to:', name);
     setPlayerSetup({
       ...playerSetup,
       humanPlayer: { ...playerSetup.humanPlayer, name }
@@ -43,35 +50,63 @@ const SetupScreen = ({ darkMode = false, onGameStart }) => {
     setIsStarting(true);
     
     try {
-      // Reset any existing game state
-      resetGame();
+      console.log('===== START GAME PROCESS BEGIN =====');
+      console.log('Raw playerSetup from store:', playerSetup);
+      console.log('humanPlayer specifically:', playerSetup?.humanPlayer);
       
-      // Initialize new game through game engine
-      const initialGameState = gameEngine.initializeGame(playerSetup);
-      
-      // Set up event listeners for game engine
-      gameEngine.on('gameInitialized', ({ gameState: newGameState }) => {
-        setGameState(newGameState);
-      });
-
-      gameEngine.on('handStarted', ({ gameState: newGameState }) => {
-        setGameState(newGameState);
-      });
-
-      // Start the first hand
-      const firstHandState = gameEngine.startNewHand(initialGameState);
-      setGameState(firstHandState);
-      
-      // Notify parent component
-      if (onGameStart) {
-        onGameStart(firstHandState);
+      // Strict validation - no fallbacks that hide errors
+      if (!playerSetup) {
+        throw new Error('SETUP ERROR: playerSetup is null or undefined');
       }
       
+      if (!playerSetup.humanPlayer) {
+        throw new Error('SETUP ERROR: humanPlayer is missing from playerSetup');
+      }
+      
+      if (!playerSetup.humanPlayer.name || typeof playerSetup.humanPlayer.name !== 'string') {
+        throw new Error('SETUP ERROR: humanPlayer.name is invalid or missing');
+      }
+      
+      if (!playerSetup.aiPlayers || !Array.isArray(playerSetup.aiPlayers)) {
+        throw new Error('SETUP ERROR: aiPlayers is not an array');
+      }
+      
+      if (playerSetup.aiPlayers.length === 0) {
+        throw new Error('SETUP ERROR: aiPlayers array is empty');
+      }
+      
+      // Validate each AI player
+      playerSetup.aiPlayers.forEach((ai, index) => {
+        if (!ai || typeof ai !== 'object') {
+          throw new Error(`SETUP ERROR: AI player ${index} is invalid`);
+        }
+        if (!ai.name || typeof ai.name !== 'string') {
+          throw new Error(`SETUP ERROR: AI player ${index} has invalid name`);
+        }
+        if (!ai.strategy || typeof ai.strategy !== 'string') {
+          throw new Error(`SETUP ERROR: AI player ${index} has invalid strategy`);
+        }
+      });
+      
+      console.log('SetupScreen validation passed, using playerSetup:', playerSetup);
+      
+      // Let the parent component handle the game initialization
+      // SetupScreen should only validate and pass the playerSetup
+      if (onGameStart) {
+        console.log('Notifying parent component to start game with playerSetup:', playerSetup);
+        await onGameStart(playerSetup);
+      }
+      
+      console.log('===== START GAME PROCESS END =====');
+      
     } catch (error) {
-      console.error('Failed to start game:', error);
+      console.error('GAME START ERROR:', error);
+      console.error('Error stack:', error.stack);
       setIsStarting(false);
+      // Re-throw the error so it's not hidden
+      throw error;
     }
-  }, [playerSetup, resetGame, setGameState, onGameStart]);
+  }, [playerSetup, onGameStart]);
 
   const getStrategyColor = (strategy) => {
     switch (strategy) {
@@ -121,6 +156,24 @@ const SetupScreen = ({ darkMode = false, onGameStart }) => {
     playerCard: 'bg-white border-gray-300',
     subText: 'text-gray-700'
   };
+
+  // Don't render if playerSetup is not properly initialized
+  if (!playerSetup || !playerSetup.humanPlayer || !playerSetup.aiPlayers) {
+    console.error('SetupScreen: playerSetup is not properly initialized');
+    console.error('playerSetup:', playerSetup);
+    console.error('humanPlayer:', playerSetup?.humanPlayer);
+    console.error('aiPlayers:', playerSetup?.aiPlayers);
+    
+    return (
+      <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gradient-to-br from-green-800 to-green-600 text-white'} p-6 flex items-center justify-center`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Loading game setup...</p>
+          <p className="text-sm mt-2">Check console for details</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen ${themeClasses.bg} ${themeClasses.text} p-6`}>
@@ -174,7 +227,10 @@ const SetupScreen = ({ darkMode = false, onGameStart }) => {
               <input 
                 type="text" 
                 value={playerSetup.humanPlayer.name}
-                onChange={(e) => updateHumanPlayerName(e.target.value)}
+                onChange={(e) => {
+                  console.log('Input onChange triggered with value:', e.target.value);
+                  updateHumanPlayerName(e.target.value);
+                }}
                 className={`${themeClasses.input} rounded-lg px-4 py-2 w-full border text-lg`}
                 placeholder="Enter your name"
                 maxLength={20}

@@ -56,25 +56,78 @@ export class GameEngine {
    * @returns {GameState} Initial game state
    */
   initializeGame(playerSetup) {
+    // Comprehensive logging for initialization
+    console.log('===== GAME INITIALIZATION START =====');
+    console.log('GameEngine.initializeGame received playerSetup:', playerSetup);
+    console.log('GameEngine.initializeGame humanPlayer:', playerSetup?.humanPlayer);
+    console.log('GameEngine.initializeGame humanPlayer type:', typeof playerSetup?.humanPlayer);
+    console.log('GameEngine.initializeGame humanPlayer keys:', Object.keys(playerSetup?.humanPlayer || {}));
+    
+    // Strict validation - no fallbacks that hide errors
+    if (!playerSetup) {
+      throw new Error('INITIALIZATION ERROR: playerSetup is null or undefined');
+    }
+    
+    if (!playerSetup.humanPlayer) {
+      throw new Error('INITIALIZATION ERROR: humanPlayer is missing from playerSetup');
+    }
+    
+    if (!playerSetup.humanPlayer.name || typeof playerSetup.humanPlayer.name !== 'string') {
+      throw new Error('INITIALIZATION ERROR: humanPlayer.name is invalid or missing');
+    }
+    
+    if (!playerSetup.aiPlayers || !Array.isArray(playerSetup.aiPlayers)) {
+      throw new Error('INITIALIZATION ERROR: aiPlayers is not an array');
+    }
+    
+    if (playerSetup.aiPlayers.length === 0) {
+      throw new Error('INITIALIZATION ERROR: aiPlayers array is empty');
+    }
+    
+    // Validate each AI player
+    playerSetup.aiPlayers.forEach((ai, index) => {
+      if (!ai || typeof ai !== 'object') {
+        throw new Error(`INITIALIZATION ERROR: AI player ${index} is invalid`);
+      }
+      if (!ai.name || typeof ai.name !== 'string') {
+        throw new Error(`INITIALIZATION ERROR: AI player ${index} has invalid name`);
+      }
+      if (!ai.strategy || typeof ai.strategy !== 'string') {
+        throw new Error(`INITIALIZATION ERROR: AI player ${index} has invalid strategy`);
+      }
+    });
+    
+    console.log('GameEngine validation passed, using playerSetup:', playerSetup);
+    
     // Randomly assign seat positions (0-8)
     const availableSeats = Array.from({length: 9}, (_, i) => i);
     const shuffledSeats = this.shuffleArray(availableSeats);
+    
+    console.log('Available seats:', availableSeats);
+    console.log('Shuffled seats:', shuffledSeats);
+    console.log('Human player will get seat:', shuffledSeats[0]);
+    console.log('AI players will get seats:', shuffledSeats.slice(1));
 
+    // Create human player
+    const humanPlayer = {
+      id: 0,
+      name: playerSetup.humanPlayer.name,
+      seat: shuffledSeats[0],
+      chips: DEFAULT_SETTINGS.INITIAL_CHIPS,
+      holeCards: [],
+      isHuman: true,
+      isActive: true,
+      currentBet: 0,
+      hasActed: false,
+      isAllIn: false,
+      strategy: null,
+      actualStrategy: null
+    };
+    
+    console.log('Created human player:', humanPlayer);
+    
     const players = [
-      {
-        id: 0,
-        name: playerSetup.humanPlayer.name,
-        seat: shuffledSeats[0],
-        chips: DEFAULT_SETTINGS.INITIAL_CHIPS,
-        holeCards: [],
-        isHuman: true,
-        isActive: true,
-        currentBet: 0,
-        hasActed: false,
-        isAllIn: false,
-        strategy: null,
-        actualStrategy: null
-      },
+      humanPlayer,
       ...playerSetup.aiPlayers.map((ai, index) => {
         let actualStrategy = ai.strategy;
         if (ai.strategy === AI_STRATEGIES.RANDOMLY_DETERMINED) {
@@ -89,7 +142,7 @@ export class GameEngine {
           actualStrategy = availableStrategies[Math.floor(Math.random() * availableStrategies.length)];
         }
         
-        return {
+        const aiPlayer = {
           id: index + 1,
           name: ai.name,
           seat: shuffledSeats[index + 1],
@@ -103,6 +156,9 @@ export class GameEngine {
           strategy: ai.strategy,
           actualStrategy: actualStrategy
         };
+        
+        console.log(`Created AI player ${index + 1}:`, aiPlayer);
+        return aiPlayer;
       })
     ];
 
@@ -134,6 +190,10 @@ export class GameEngine {
       actionCount: 0
     };
 
+    console.log('GameEngine created players:', players);
+    console.log('GameEngine created gameState:', gameState);
+    console.log('===== GAME INITIALIZATION END =====');
+    
     this.emit('gameInitialized', { gameState, players });
     return gameState;
   }
@@ -470,6 +530,154 @@ export class GameEngine {
       raiseAmount,
       description
     };
+  }
+
+  /**
+   * Handle all-in situation - deal all remaining cards and go to showdown
+   * @param {GameState} gameState - Current game state
+   * @returns {GameState} Updated game state
+   */
+  handleAllInSituation(gameState) {
+    console.log('===== HANDLING ALL-IN SITUATION =====');
+    console.log('Current betting round:', gameState.bettingRound);
+    
+    const activePlayers = gameState.players.filter(p => p.isActive);
+    
+    if (activePlayers.length <= 1) {
+      return this.endHandEarly(gameState, activePlayers[0]);
+    }
+
+    let newDeck = [...gameState.deck];
+    let newBurnCards = [...gameState.burnCards];
+    let newCommunityCards = [...gameState.communityCards];
+    
+    // Deal all remaining community cards at once
+    switch (gameState.bettingRound) {
+      case BETTING_ROUNDS.PREFLOP:
+        // Deal flop (3), turn (1), river (1) = 5 cards total + 3 burns
+        console.log('All-in preflop: dealing flop, turn, and river');
+        
+        // Burn and deal flop
+        if (newDeck.length > 0) {
+          const { burnCard: flopBurn, remainingDeck: afterFlopBurn } = burnCard(newDeck);
+          newBurnCards.push(flopBurn);
+          newDeck = afterFlopBurn;
+          
+          if (newDeck.length >= 3) {
+            const { cards: flopCards, remainingDeck: afterFlop } = dealCards(newDeck, 3);
+            newCommunityCards.push(...flopCards);
+            newDeck = afterFlop;
+            console.log('Dealt flop:', flopCards);
+          }
+        }
+        
+        // Burn and deal turn
+        if (newDeck.length > 0) {
+          const { burnCard: turnBurn, remainingDeck: afterTurnBurn } = burnCard(newDeck);
+          newBurnCards.push(turnBurn);
+          newDeck = afterTurnBurn;
+          
+          if (newDeck.length >= 1) {
+            const { cards: turnCards, remainingDeck: afterTurn } = dealCards(newDeck, 1);
+            newCommunityCards.push(...turnCards);
+            newDeck = afterTurn;
+            console.log('Dealt turn:', turnCards);
+          }
+        }
+        
+        // Burn and deal river
+        if (newDeck.length > 0) {
+          const { burnCard: riverBurn, remainingDeck: afterRiverBurn } = burnCard(newDeck);
+          newBurnCards.push(riverBurn);
+          newDeck = afterRiverBurn;
+          
+          if (newDeck.length >= 1) {
+            const { cards: riverCards, remainingDeck: afterRiver } = dealCards(newDeck, 1);
+            newCommunityCards.push(...riverCards);
+            newDeck = afterRiver;
+            console.log('Dealt river:', riverCards);
+          }
+        }
+        break;
+        
+      case BETTING_ROUNDS.FLOP:
+        // Deal turn (1), river (1) = 2 cards total + 2 burns
+        console.log('All-in on flop: dealing turn and river');
+        
+        // Burn and deal turn
+        if (newDeck.length > 0) {
+          const { burnCard: turnBurn, remainingDeck: afterTurnBurn } = burnCard(newDeck);
+          newBurnCards.push(turnBurn);
+          newDeck = afterTurnBurn;
+          
+          if (newDeck.length >= 1) {
+            const { cards: turnCards, remainingDeck: afterTurn } = dealCards(newDeck, 1);
+            newCommunityCards.push(...turnCards);
+            newDeck = afterTurn;
+            console.log('Dealt turn:', turnCards);
+          }
+        }
+        
+        // Burn and deal river
+        if (newDeck.length > 0) {
+          const { burnCard: riverBurn, remainingDeck: afterRiverBurn } = burnCard(newDeck);
+          newBurnCards.push(riverBurn);
+          newDeck = afterRiverBurn;
+          
+          if (newDeck.length >= 1) {
+            const { cards: riverCards, remainingDeck: afterRiver } = dealCards(newDeck, 1);
+            newCommunityCards.push(...riverCards);
+            newDeck = afterRiver;
+            console.log('Dealt river:', riverCards);
+          }
+        }
+        break;
+        
+      case BETTING_ROUNDS.TURN:
+        // Deal river (1) = 1 card + 1 burn
+        console.log('All-in on turn: dealing river');
+        
+        // Burn and deal river
+        if (newDeck.length > 0) {
+          const { burnCard: riverBurn, remainingDeck: afterRiverBurn } = burnCard(newDeck);
+          newBurnCards.push(riverBurn);
+          newDeck = afterRiverBurn;
+          
+          if (newDeck.length >= 1) {
+            const { cards: riverCards, remainingDeck: afterRiver } = dealCards(newDeck, 1);
+            newCommunityCards.push(...riverCards);
+            newDeck = afterRiver;
+            console.log('Dealt river:', riverCards);
+          }
+        }
+        break;
+        
+      case BETTING_ROUNDS.RIVER:
+        // Already at river, go to showdown
+        console.log('All-in on river: going to showdown');
+        break;
+    }
+    
+    // Create updated state and go to showdown
+    const updatedState = {
+      ...gameState,
+      deck: newDeck,
+      burnCards: newBurnCards,
+      communityCards: newCommunityCards,
+      bettingRound: BETTING_ROUNDS.RIVER,
+      processingPhase: false
+    };
+    
+    console.log('All community cards dealt, going to showdown');
+    console.log('Final community cards:', newCommunityCards);
+    
+    // Emit event for all cards being dealt
+    this.emit('allInShowdown', { 
+      gameState: updatedState, 
+      communityCards: newCommunityCards 
+    });
+    
+    return this.showdown(updatedState);
   }
 
   /**

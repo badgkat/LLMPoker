@@ -208,7 +208,7 @@ const GameLog = ({ darkMode = false, maxHeight = 300 }) => {
             className="space-y-1 max-h-32 overflow-y-auto"
           >
             {filterEntries(gameLog.currentHand).slice(-10).map((entry, index) => (
-              <div key={index} className={`text-xs leading-relaxed ${getMessageClass(entry.message)}`}>
+              <div key={`current-${gameState.handNumber}-${index}-${entry.timestamp || index}`} className={`text-xs leading-relaxed ${getMessageClass(entry.message)}`}>
                 <span className="inline-block w-4 text-center mr-1">
                   {getMessageIcon(entry.message)}
                 </span>
@@ -228,7 +228,7 @@ const GameLog = ({ darkMode = false, maxHeight = 300 }) => {
 
         {/* Previous Hands */}
         {gameLog.handHistory.slice(-5).reverse().map((hand, index) => (
-          <div key={hand.handNumber} className={`border rounded ${
+          <div key={`hand-history-${hand.handNumber}-${index}`} className={`border rounded ${
             darkMode ? 'border-gray-600 bg-gray-800/30' : 'border-gray-300 bg-white/30'
           }`}>
             <button
@@ -249,7 +249,7 @@ const GameLog = ({ darkMode = false, maxHeight = 300 }) => {
               <div className="p-2 border-t border-gray-600/30 max-h-32 overflow-y-auto">
                 <div className="space-y-1">
                   {filterEntries(hand.log).map((entry, entryIndex) => (
-                    <div key={entryIndex} className={`text-xs leading-relaxed ${getMessageClass(entry.message)}`}>
+                    <div key={`history-${hand.handNumber}-${entryIndex}-${entry.timestamp || entryIndex}`} className={`text-xs leading-relaxed ${getMessageClass(entry.message)}`}>
                       <span className="inline-block w-4 text-center mr-1">
                         {getMessageIcon(entry.message)}
                       </span>

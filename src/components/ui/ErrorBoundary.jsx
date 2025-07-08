@@ -13,7 +13,7 @@ class ErrorBoundary extends React.Component {
     };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(_error) {
     return { hasError: true };
   }
 
@@ -23,8 +23,18 @@ class ErrorBoundary extends React.Component {
       errorInfo: errorInfo
     });
 
-    // Log error to console for debugging
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Comprehensive error logging
+    console.error('===== ERROR BOUNDARY CAUGHT ERROR =====');
+    console.error('Error:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Error Info:', errorInfo);
+    console.error('Component Stack:', errorInfo.componentStack);
+    console.error('Error name:', error.name);
+    console.error('Error timestamp:', new Date().toISOString());
+    console.error('User agent:', (typeof window !== 'undefined' && window.navigator) ? window.navigator.userAgent : 'unknown');
+    console.error('URL:', typeof window !== 'undefined' ? window.location.href : 'unknown');
+    console.error('=======================================');
     
     // In production, you might want to log this to an error reporting service
     if (typeof window !== 'undefined' && window.reportError) {
@@ -69,29 +79,53 @@ class ErrorBoundary extends React.Component {
               </ul>
             </div>
 
-            {/* Error Details (only in development) */}
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {/* Error Details - Always show in development for debugging */}
+            {this.state.error && (
               <details className={`${
                 darkMode ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'
               } border rounded-lg p-4 mb-6`}>
                 <summary className="cursor-pointer font-medium text-red-600 mb-2">
-                  Technical Details (Development Mode)
+                  🔍 Technical Details & Debugging Information
                 </summary>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div>
-                    <strong>Error:</strong>
-                    <pre className="text-xs mt-1 overflow-auto bg-black/20 p-2 rounded">
+                    <strong>Error Type:</strong> {this.state.error.name || 'Unknown'}
+                  </div>
+                  <div>
+                    <strong>Error Message:</strong>
+                    <pre className="text-xs mt-1 overflow-auto bg-black/20 p-2 rounded whitespace-pre-wrap">
+                      {this.state.error.message || 'No message available'}
+                    </pre>
+                  </div>
+                  <div>
+                    <strong>Full Error:</strong>
+                    <pre className="text-xs mt-1 overflow-auto bg-black/20 p-2 rounded whitespace-pre-wrap">
                       {this.state.error.toString()}
+                    </pre>
+                  </div>
+                  <div>
+                    <strong>Stack Trace:</strong>
+                    <pre className="text-xs mt-1 overflow-auto bg-black/20 p-2 rounded whitespace-pre-wrap max-h-32">
+                      {this.state.error.stack || 'No stack trace available'}
                     </pre>
                   </div>
                   {this.state.errorInfo && (
                     <div>
                       <strong>Component Stack:</strong>
-                      <pre className="text-xs mt-1 overflow-auto bg-black/20 p-2 rounded">
+                      <pre className="text-xs mt-1 overflow-auto bg-black/20 p-2 rounded whitespace-pre-wrap max-h-32">
                         {this.state.errorInfo.componentStack}
                       </pre>
                     </div>
                   )}
+                  <div>
+                    <strong>Timestamp:</strong> {new Date().toISOString()}
+                  </div>
+                  <div>
+                    <strong>User Agent:</strong> {(typeof window !== 'undefined' && window.navigator) ? window.navigator.userAgent : 'unknown'}
+                  </div>
+                  <div>
+                    <strong>URL:</strong> {typeof window !== 'undefined' ? window.location.href : 'unknown'}
+                  </div>
                 </div>
               </details>
             )}

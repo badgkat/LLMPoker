@@ -120,6 +120,12 @@ export const useGameFlow = () => {
       // Show hand summary
       const summary = createHandSummary(data);
       setHandSummary(summary);
+      
+      // Start next hand after delay
+      console.log('Showdown complete - starting next hand in 3 seconds');
+      setTimeout(() => {
+        startNextHand(data.gameState);
+      }, 3000);
     });
 
     // Hand ending events
@@ -143,6 +149,12 @@ export const useGameFlow = () => {
       // Show simple hand summary
       const summary = createHandSummary(data, 'fold');
       setHandSummary(summary);
+      
+      // Start next hand after delay
+      console.log('Hand ended early - starting next hand in 3 seconds');
+      setTimeout(() => {
+        startNextHand(data.gameState);
+      }, 3000);
     });
 
     // Game over events
@@ -247,13 +259,18 @@ export const useGameFlow = () => {
    */
   const startNewGame = useCallback(async (playerSetup) => {
     try {
+      console.log('===== USEgameflow START NEW GAME =====');
+      console.log('useGameFlow.startNewGame received playerSetup:', playerSetup);
+      
       // Reset everything
       resetGame();
       aiMemory.clearMemory();
       aiEngine.clearMemories();
 
       // Initialize through game engine
+      console.log('useGameFlow calling gameEngine.initializeGame with:', playerSetup);
       const initialGameState = gameEngine.initializeGame(playerSetup);
+      console.log('useGameFlow gameEngine.initializeGame returned:', initialGameState);
       setGameState(initialGameState);
 
       // Start first hand
@@ -305,22 +322,58 @@ export const useGameFlow = () => {
   }, [gameState]);
 
   /**
+   * Start the next hand after current hand completes
+   * @param {Object} currentState - Current game state
+   * @returns {void}
+   */
+  const startNextHand = useCallback((currentState) => {
+    try {
+      console.log('===== STARTING NEXT HAND =====');
+      console.log('Current state:', currentState);
+      
+      // Check if game should end
+      const playersWithChips = currentState.players.filter(p => p.chips > 0);
+      if (playersWithChips.length < 2) {
+        console.log('Game over - not enough players with chips');
+        setGameState({ 
+          ...currentState, 
+          phase: GAME_PHASES.GAME_OVER 
+        });
+        return;
+      }
+      
+      // Move dealer button
+      const newDealerButton = (currentState.dealerButton + 1) % currentState.players.length;
+      
+      // Update hand number and dealer
+      const preHandState = {
+        ...currentState,
+        handNumber: currentState.handNumber + 1,
+        dealerButton: newDealerButton,
+        showingSummary: false
+      };
+      
+      console.log('Starting hand', preHandState.handNumber, 'with dealer button at', newDealerButton);
+      
+      // Start new hand through game engine
+      const newHandState = gameEngine.startNewHand(preHandState);
+      setGameState(newHandState);
+      
+      console.log('New hand started successfully');
+    } catch (error) {
+      console.error('Error starting next hand:', error);
+    }
+  }, [setGameState]);
+
+  /**
    * Force advance to next hand (for testing/admin)
    * @returns {void}
    */
   const forceNextHand = useCallback(() => {
     if (gameState.phase === GAME_PHASES.PLAYING) {
-      const newDealerButton = (gameState.dealerButton + 1) % gameState.players.length;
-      const nextHandState = {
-        ...gameState,
-        handNumber: gameState.handNumber + 1,
-        dealerButton: newDealerButton
-      };
-      
-      const newHandState = gameEngine.startNewHand(nextHandState);
-      setGameState(newHandState);
+      startNextHand(gameState);
     }
-  }, [gameState, setGameState]);
+  }, [gameState, startNextHand]);
 
   return {
     // Game control methods
