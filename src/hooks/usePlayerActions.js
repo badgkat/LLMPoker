@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useGameStore } from '../store/gameStore.js';
 import { gameEngine } from '../utils/gameEngine.js';
 import { aiEngine } from '../ai/aiEngine.js';
-import { validatePlayerAction } from '../utils/pokerLogic.js';
+import { validatePlayerAction, getAvailableActions } from '../utils/pokerLogic.js';
 import { PLAYER_ACTIONS } from '../constants/gameConstants.js';
 
 /**
@@ -43,8 +43,25 @@ export const usePlayerActions = () => {
       );
 
       if (!isValid) {
-        console.warn(`Invalid action: ${action} for player ${currentPlayer.name}`);
-        return false;
+        const availableActions = getAvailableActions(
+          currentPlayer,
+          gameState.currentBet,
+          gameState.lastRaiseSize,
+          gameState.bigBlind
+        );
+        console.error(`Invalid action attempted:`, {
+          action,
+          amount,
+          player: currentPlayer.name,
+          playerChips: currentPlayer.chips,
+          playerCurrentBet: currentPlayer.currentBet,
+          gameCurrentBet: gameState.currentBet,
+          availableActions,
+          lastRaiseSize: gameState.lastRaiseSize,
+          bigBlind: gameState.bigBlind,
+          callAmount: gameState.currentBet - currentPlayer.currentBet
+        });
+        throw new Error(`Invalid action: ${action} is not available for ${currentPlayer.name}. Available actions: ${availableActions.join(', ')}`);
       }
 
       // Set processing state
@@ -103,6 +120,36 @@ export const usePlayerActions = () => {
       
       if (!decision.action) {
         throw new Error(`AI_ACTION_ERROR: No action in decision for ${player.name}`);
+      }
+
+      // Validate AI action before executing
+      const availableActions = getAvailableActions(
+        player,
+        gameState.currentBet,
+        gameState.lastRaiseSize,
+        gameState.bigBlind
+      );
+      
+      if (!availableActions.includes(decision.action)) {
+        console.error(`AI chose invalid action:`, {
+          aiPlayer: player.name,
+          chosenAction: decision.action,
+          chosenAmount: decision.amount,
+          availableActions,
+          playerState: {
+            chips: player.chips,
+            currentBet: player.currentBet,
+            isActive: player.isActive,
+            isAllIn: player.isAllIn
+          },
+          gameState: {
+            currentBet: gameState.currentBet,
+            lastRaiseSize: gameState.lastRaiseSize,
+            bigBlind: gameState.bigBlind,
+            bettingRound: gameState.bettingRound
+          }
+        });
+        throw new Error(`AI_ACTION_ERROR: AI chose invalid action ${decision.action}. Available: ${availableActions.join(', ')}`);
       }
       
       // Log AI reasoning for debugging
