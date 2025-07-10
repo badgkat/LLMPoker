@@ -129,7 +129,6 @@ export const useGameFlow = () => {
       setHandSummary(summary);
       
       // Start next hand after delay
-      console.log('Showdown complete - starting next hand in 3 seconds');
       setTimeout(() => {
         startNextHand(data.gameState);
       }, 3000);
@@ -158,7 +157,6 @@ export const useGameFlow = () => {
       setHandSummary(summary);
       
       // Start next hand after delay
-      console.log('Hand ended early - starting next hand in 3 seconds');
       setTimeout(() => {
         startNextHand(data.gameState);
       }, 3000);
@@ -266,8 +264,6 @@ export const useGameFlow = () => {
    */
   const startNewGame = useCallback(async (playerSetup) => {
     try {
-      console.log('===== USEgameflow START NEW GAME =====');
-      console.log('useGameFlow.startNewGame received playerSetup:', playerSetup);
       
       // Reset everything
       resetGame();
@@ -275,9 +271,7 @@ export const useGameFlow = () => {
       aiEngine.clearMemories();
 
       // Initialize through game engine
-      console.log('useGameFlow calling gameEngine.initializeGame with:', playerSetup);
       const initialGameState = gameEngine.initializeGame(playerSetup);
-      console.log('useGameFlow gameEngine.initializeGame returned:', initialGameState);
       setGameState(initialGameState);
 
       // Start first hand
@@ -335,13 +329,9 @@ export const useGameFlow = () => {
    */
   const startNextHand = useCallback((currentState) => {
     try {
-      console.log('===== STARTING NEXT HAND =====');
-      console.log('Current state:', currentState);
-      
       // Check if game should end
       const playersWithChips = currentState.players.filter(p => p.chips > 0);
       if (playersWithChips.length < 2) {
-        console.log('Game over - not enough players with chips');
         setGameState({ 
           ...currentState, 
           phase: GAME_PHASES.GAME_OVER 
@@ -360,13 +350,10 @@ export const useGameFlow = () => {
         showingSummary: false
       };
       
-      console.log('Starting hand', preHandState.handNumber, 'with dealer button at', newDealerButton);
-      
       // Start new hand through game engine
       const newHandState = gameEngine.startNewHand(preHandState);
       setGameState(newHandState);
       
-      console.log('New hand started successfully');
     } catch (error) {
       console.error('Error starting next hand:', error);
     }
