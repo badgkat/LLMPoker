@@ -27,7 +27,6 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
       
       const timer = setTimeout(async () => {
         try {
-          console.log(`Attempting to process AI action for ${currentPlayer.name}`);
           await processAIAction(currentPlayer);
         } catch (error) {
           console.error('AI ACTION PROCESSING ERROR:', error);

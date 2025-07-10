@@ -16,8 +16,6 @@ import LLMSettings from '../settings/LLMSettings.jsx';
 const SetupScreen = ({ darkMode = false, onGameStart, onToggleTheme }) => {
   const { playerSetup, setPlayerSetup } = useGameStore();
   
-  // Debug logging
-  console.log('SetupScreen render - playerSetup:', playerSetup);
   const [isStarting, setIsStarting] = useState(false);
   const [selectedAI, setSelectedAI] = useState(null);
   const [showLLMSettings, setShowLLMSettings] = useState(false);
@@ -39,8 +37,6 @@ const SetupScreen = ({ darkMode = false, onGameStart, onToggleTheme }) => {
 
   const updateHumanPlayerName = useCallback((name) => {
     if (!playerSetup?.humanPlayer) return;
-    
-    console.log('Updating human player name from:', playerSetup.humanPlayer.name, 'to:', name);
     setPlayerSetup({
       ...playerSetup,
       humanPlayer: { ...playerSetup.humanPlayer, name }
@@ -50,11 +46,7 @@ const SetupScreen = ({ darkMode = false, onGameStart, onToggleTheme }) => {
   const startGame = useCallback(async () => {
     setIsStarting(true);
     
-    try {
-      console.log('===== START GAME PROCESS BEGIN =====');
-      console.log('Raw playerSetup from store:', playerSetup);
-      console.log('humanPlayer specifically:', playerSetup?.humanPlayer);
-      
+    try {      
       // Strict validation - no fallbacks that hide errors
       if (!playerSetup) {
         throw new Error('SETUP ERROR: playerSetup is null or undefined');
@@ -89,16 +81,11 @@ const SetupScreen = ({ darkMode = false, onGameStart, onToggleTheme }) => {
         }
       });
       
-      console.log('SetupScreen validation passed, using playerSetup:', playerSetup);
-      
       // Let the parent component handle the game initialization
       // SetupScreen should only validate and pass the playerSetup
       if (onGameStart) {
-        console.log('Notifying parent component to start game with playerSetup:', playerSetup);
         await onGameStart(playerSetup);
       }
-      
-      console.log('===== START GAME PROCESS END =====');
       
     } catch (error) {
       console.error('GAME START ERROR:', error);
@@ -229,7 +216,6 @@ const SetupScreen = ({ darkMode = false, onGameStart, onToggleTheme }) => {
                 type="text" 
                 value={playerSetup.humanPlayer.name}
                 onChange={(e) => {
-                  console.log('Input onChange triggered with value:', e.target.value);
                   updateHumanPlayerName(e.target.value);
                 }}
                 className={`${themeClasses.input} rounded-lg px-4 py-2 w-full border text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}

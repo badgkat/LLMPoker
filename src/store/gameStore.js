@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { GAME_PHASES, BETTING_ROUNDS, DEFAULT_SETTINGS } from '../constants/gameConstants.js';
+import { getAvailableActions as getAvailableActionsFromLogic } from '../utils/pokerLogic.js';
 
 /**
  * @typedef {import('./types.js').GameState} GameState
@@ -60,21 +61,15 @@ export const useGameStore = create(
 
     // Actions
     setGameState: (updates) => {
-      console.log('GameStore.setGameState called with updates:', updates);
       set((state) => {
         const newGameState = { ...state.gameState, ...updates };
-        console.log('GameStore.setGameState previous state:', state.gameState);
-        console.log('GameStore.setGameState new state:', newGameState);
         return { gameState: newGameState };
       });
     },
 
     setPlayerSetup: (updates) => {
-      console.log('GameStore.setPlayerSetup called with updates:', updates);
       set((state) => {
         const newPlayerSetup = { ...state.playerSetup, ...updates };
-        console.log('GameStore.setPlayerSetup previous state:', state.playerSetup);
-        console.log('GameStore.setPlayerSetup new state:', newPlayerSetup);
         return { playerSetup: newPlayerSetup };
       });
     },
@@ -114,13 +109,29 @@ export const useGameStore = create(
       if (isHandStart) {
         // Always move current hand to history if it has entries, and use the previous hand number
         const previousHandNumber = state.gameState.handNumber > 0 ? state.gameState.handNumber - 1 : 0;
-        const updatedHistory = state.gameLog.currentHand.length > 0 
-          ? [...state.gameLog.handHistory, { 
-              handNumber: previousHandNumber, 
-              log: [...state.gameLog.currentHand], // Create a copy
-              completed: true 
-            }]
-          : state.gameLog.handHistory;
+        
+        // Check if we already have this hand number in history to avoid duplicates
+        const existingHandIndex = state.gameLog.handHistory.findIndex(h => h.handNumber === previousHandNumber);
+        
+        let updatedHistory;
+        if (state.gameLog.currentHand.length > 0) {
+          const newHandEntry = {
+            handNumber: previousHandNumber,
+            log: [...state.gameLog.currentHand], // Create a copy
+            completed: true
+          };
+          
+          if (existingHandIndex !== -1) {
+            // Update existing hand rather than create duplicate
+            updatedHistory = [...state.gameLog.handHistory];
+            updatedHistory[existingHandIndex] = newHandEntry;
+          } else {
+            // Add new hand to history
+            updatedHistory = [...state.gameLog.handHistory, newHandEntry];
+          }
+        } else {
+          updatedHistory = state.gameLog.handHistory;
+        }
 
         return {
           gameLog: {
@@ -156,34 +167,12 @@ export const useGameStore = create(
       const state = get();
       const { gameState } = state;
       
-      if (!player || !player.isActive || player.isAllIn) return [];
-      
-      const actions = [];
-      const callAmount = gameState.currentBet - player.currentBet;
-      
-      if (callAmount === 0) {
-        actions.push('check');
-      } else if (callAmount <= player.chips && callAmount > 0) {
-        actions.push('call');
-      }
-      
-      if (callAmount > 0) {
-        actions.push('fold');
-      }
-      
-      const minRaiseSize = Math.max(gameState.lastRaiseSize, gameState.bigBlind);
-      const minRaiseTotal = gameState.currentBet + minRaiseSize;
-      const additionalForFullRaise = minRaiseTotal - player.currentBet;
-      
-      if (player.chips >= additionalForFullRaise) {
-        actions.push('raise');
-      }
-      
-      if (player.chips > 0) {
-        actions.push('all-in');
-      }
-      
-      return actions;
+      return getAvailableActionsFromLogic(
+        player,
+        gameState.currentBet,
+        gameState.lastRaiseSize,
+        gameState.bigBlind
+      );
     },
 
     getCurrentPlayer: () => {

@@ -4,6 +4,7 @@ import { gameEngine } from '../utils/gameEngine.js';
 import { aiEngine } from '../ai/aiEngine.js';
 import { validatePlayerAction, getAvailableActions } from '../utils/pokerLogic.js';
 import { PLAYER_ACTIONS } from '../constants/gameConstants.js';
+import { logPlayerAction, logGameStateChange } from '../utils/detailedLogger.js';
 
 /**
  * Custom hook for handling player actions
@@ -15,7 +16,7 @@ export const usePlayerActions = () => {
     setGameState, 
     addLogEntry, 
     getCurrentPlayer, 
-    getAvailableActions 
+    getAvailableActions: getAvailableActionsFromStore 
   } = useGameStore();
 
   /**
@@ -67,8 +68,22 @@ export const usePlayerActions = () => {
       // Set processing state
       setGameState({ processingPhase: true });
 
+      // Log the player action
+      logPlayerAction(currentPlayer, action, amount, gameState, {
+        availableActions: getAvailableActions(
+          currentPlayer,
+          gameState.currentBet,
+          gameState.lastRaiseSize,
+          gameState.bigBlind
+        ),
+        validAction: isValid
+      });
+
       // Process the action through game engine
       const newGameState = gameEngine.processPlayerAction(gameState, action, amount);
+      
+      // Log game state change
+      logGameStateChange(gameState, newGameState, `player_action_${action}`);
       
       // Update the game state
       setGameState(newGameState);
@@ -91,28 +106,15 @@ export const usePlayerActions = () => {
    */
   const processAIAction = useCallback(async (player) => {
     if (!player || !player.isActive || player.isAllIn || player.isHuman) {
-      console.log('AI action skipped - player invalid or not eligible:', {
-        player: player?.name,
-        isActive: player?.isActive,
-        isAllIn: player?.isAllIn,
-        isHuman: player?.isHuman
-      });
       return false;
     }
-
-    console.log(`===== AI ACTION START: ${player.name} =====`);
-    console.log('Player state:', player);
-    console.log('Game state for AI:', gameState);
     
     try {
       // Get game context for AI
       const gameContext = getGameContextForAI(player);
-      console.log('Game context for AI:', gameContext);
       
       // Get AI decision
-      console.log('Calling aiEngine.getAIDecision...');
       const decision = await aiEngine.getAIDecision(player, gameState, gameContext);
-      console.log('AI decision received:', decision);
       
       if (!decision) {
         throw new Error(`AI_ACTION_ERROR: No decision returned from AI engine for ${player.name}`);
@@ -152,14 +154,8 @@ export const usePlayerActions = () => {
         throw new Error(`AI_ACTION_ERROR: AI chose invalid action ${decision.action}. Available: ${availableActions.join(', ')}`);
       }
       
-      // Log AI reasoning for debugging
-      addLogEntry(`${player.name} thinking: ${decision.reasoning || 'No reasoning provided'}`);
-      
       // Execute the AI's decision
-      console.log(`Executing AI action: ${decision.action} with amount: ${decision.amount || 0}`);
       const result = await executePlayerAction(decision.action, decision.amount || 0);
-      console.log(`AI action result: ${result}`);
-      console.log(`===== AI ACTION END: ${player.name} =====`);
       
       return result;
     } catch (error) {
@@ -180,14 +176,9 @@ export const usePlayerActions = () => {
       const activePlayers = newGameState.players.filter(p => p.isActive);
       const playersWhoCanAct = activePlayers.filter(p => !p.isAllIn);
       
-      console.log('===== GAME FLOW DECISION =====');
-      console.log('Active players:', activePlayers.length);
-      console.log('Players who can act:', playersWhoCanAct.length);
-      console.log('Betting complete:', gameEngine.isBettingComplete(newGameState));
       
       // PRIORITY 1: Handle early hand end (only one player left)
       if (activePlayers.length <= 1) {
-        console.log('Hand ending early - only one active player left');
         const finalState = gameEngine.endHandEarly(newGameState, activePlayers[0]);
         setGameState(finalState);
         
@@ -200,11 +191,9 @@ export const usePlayerActions = () => {
       
       // PRIORITY 2: Handle all-in situation (everyone is all-in)
       if (playersWhoCanAct.length === 0) {
-        console.log('All remaining players are all-in - handling all-in situation');
         
         // Prevent multiple concurrent all-in processing
         if (newGameState.processingPhase) {
-          console.log('Already processing all-in situation, skipping');
           return;
         }
         
@@ -222,7 +211,6 @@ export const usePlayerActions = () => {
       
       // PRIORITY 3: Check if betting round is complete (normal flow)
       if (gameEngine.isBettingComplete(newGameState)) {
-        console.log('Betting round complete - advancing to next phase');
         setTimeout(() => {
           const nextPhaseState = gameEngine.advanceToNextPhase(newGameState);
           setGameState(nextPhaseState);
@@ -233,13 +221,11 @@ export const usePlayerActions = () => {
       // PRIORITY 4: Continue with next player
       const nextPlayer = gameEngine.getNextPlayer(newGameState);
       if (nextPlayer === -1) {
-        console.log('No valid next player - advancing phase');
         setTimeout(() => {
           const nextPhaseState = gameEngine.advanceToNextPhase(newGameState);
           setGameState(nextPhaseState);
         }, 1000);
       } else {
-        console.log(`Moving to next player: ${nextPlayer}`);
         setGameState({ 
           ...newGameState, 
           activePlayer: nextPlayer, 
@@ -358,9 +344,18 @@ export const usePlayerActions = () => {
     const currentPlayer = getCurrentPlayer();
     if (!currentPlayer) return false;
     
-    const availableActions = getAvailableActions(currentPlayer);
-    return availableActions.includes(action);
-  }, [getCurrentPlayer, getAvailableActions]);
+    const availableActions = getAvailableActions(
+      currentPlayer,
+      gameState.currentBet,
+      gameState.lastRaiseSize,
+      gameState.bigBlind
+    );
+    
+    const isAvailable = availableActions.includes(action);
+    
+    
+    return isAvailable;
+  }, [getCurrentPlayer, gameState.currentBet, gameState.lastRaiseSize, gameState.bigBlind]);
 
   /**
    * Get minimum raise amount
@@ -411,6 +406,13 @@ export const usePlayerActions = () => {
     // State
     isProcessing: gameState.processingPhase,
     currentPlayer: getCurrentPlayer(),
-    availableActions: getCurrentPlayer() ? getAvailableActions(getCurrentPlayer()) : []
+    availableActions: (() => {
+      const player = getCurrentPlayer();
+      if (!player) return [];
+      
+      const actions = getAvailableActionsFromStore(player);
+      
+      return actions;
+    })()
   };
 };

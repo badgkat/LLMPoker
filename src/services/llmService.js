@@ -93,7 +93,6 @@ export class LLMService {
     try {
       await this.testConnection();
       this.initialized = true;
-      console.log(`LLM Service initialized with ${this.config.provider} provider`);
     } catch (error) {
       console.warn(`Failed to initialize ${this.config.provider}, falling back to mock:`, error.message);
       this.config.provider = 'mock';
@@ -128,18 +127,14 @@ export class LLMService {
       await this.initialize();
     }
 
-    console.log('LLM Service making decision with provider:', this.config.provider);
-    console.log('LLM Service prompt excerpt:', prompt.substring(0, 200) + '...');
-
     try {
       const response = await this.makeRequest(prompt);
       const decision = this.parseResponse(response);
-      console.log('LLM Service returning decision:', decision);
       return decision;
     } catch (error) {
       console.error('LLM request failed:', error);
       const fallback = this.getFallbackResponse();
-      console.log('LLM Service returning fallback:', fallback);
+      console.warn('LLM Service returning fallback:', fallback);
       return fallback;
     }
   }
@@ -271,15 +266,33 @@ export class LLMService {
   }
 
   /**
-   * Mock request for testing/fallback
-   * @param {string} prompt - The prompt (ignored in mock)
+   * Mock request for testing/fallback - improved with mathematical decision tree
+   * @param {string} prompt - The prompt containing game state
    * @returns {Promise<string>}
    */
   async makeMockRequest(prompt) {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
     
-    // Extract available actions from the prompt
+    // Extract game context from prompt
+    const gameContext = this.extractGameContext(prompt);
+    
+    // Get hand strength evaluation
+    const handStrength = this.evaluateHandFromPrompt(prompt);
+    
+    // Make decision based on mathematical decision tree
+    const decision = this.makeMathematicalDecision(gameContext, handStrength);
+    
+    return JSON.stringify(decision);
+  }
+
+  /**
+   * Extract game context from prompt
+   * @param {string} prompt - The prompt containing game state
+   * @returns {Object} Game context information
+   */
+  extractGameContext(prompt) {
+    // Extract available actions
     const availableActionsMatch = prompt.match(/Available actions: (.+)/);
     let availableActions = ['fold', 'call']; // default fallback
     
@@ -287,14 +300,14 @@ export class LLMService {
       availableActions = availableActionsMatch[1].split(', ').map(action => action.trim());
     }
     
-    console.log('Mock LLM detected available actions:', availableActions);
-    
-    // Extract game context information from prompt for better decision making
-    // Note: Values may have commas due to toLocaleString(), so we need to handle that
+    // Extract numeric values (handle commas)
     const callAmountMatch = prompt.match(/Current bet to call: ([\d,]+)/);
     const potSizeMatch = prompt.match(/Pot size: ([\d,]+)/);
     const playerChipsMatch = prompt.match(/Your chips: ([\d,]+)/);
     const minRaiseMatch = prompt.match(/minimum raise to ([\d,]+)/);
+    const totalPlayersMatch = prompt.match(/(\d+) players/);
+    const positionMatch = prompt.match(/Position: (\w+)/);
+    const roundMatch = prompt.match(/Round: (\w+)/);
     
     // Parse numbers, removing commas
     const callAmount = callAmountMatch ? parseInt(callAmountMatch[1].replace(/,/g, '')) : 0;
@@ -302,73 +315,289 @@ export class LLMService {
     const playerChips = playerChipsMatch ? parseInt(playerChipsMatch[1].replace(/,/g, '')) : 5000;
     const minRaise = minRaiseMatch ? parseInt(minRaiseMatch[1].replace(/,/g, '')) : Math.max(callAmount + 100, 200);
     
-    console.log('Mock LLM extracted context:', { callAmount, potSize, playerChips, minRaise });
+    // Calculate pot odds
+    const potOdds = callAmount > 0 ? (potSize + callAmount) / callAmount : Infinity;
     
-    // The call amount is what we need to ADD to match the current bet
-    // But we need to know the actual current bet level in the game
-    // Since we don't have access to player.currentBet in the mock, we'll estimate
-    // currentBet = player.currentBet + callAmount
-    // For simplicity, assume player has bet very little compared to callAmount
-    const estimatedCurrentBet = callAmount; // Rough estimate of the current bet level
-    
-    // Create mock decisions that are contextually appropriate
-    const mockDecisions = [];
-    
-    if (availableActions.includes('fold')) {
-      mockDecisions.push({ action: 'fold', amount: 0, reasoning: 'Mock: Weak hand, folding' });
-    }
-    
-    if (availableActions.includes('call')) {
-      mockDecisions.push({ action: 'call', amount: 0, reasoning: 'Mock: Calling to see more cards' });
-    }
-    
-    if (availableActions.includes('check')) {
-      mockDecisions.push({ action: 'check', amount: 0, reasoning: 'Mock: Checking for free card' });
-    }
-    
-    if (availableActions.includes('raise')) {
-      // Calculate valid raise amounts as TOTAL bet amounts
-      // The raise amount must be: currentBet + minRaiseSize <= amount <= player.currentBet + player.chips
-      const minRaiseSize = Math.max(200, Math.floor(potSize * 0.1)); // Minimum 200 or 10% of pot
-      const currentGameBet = estimatedCurrentBet; // Current bet level in the game
-      const minRaiseTotal = currentGameBet + minRaiseSize; // Minimum total bet for a raise
-      
-      // Calculate reasonable raise amounts
-      const validRaiseAmounts = [
-        minRaiseTotal, // Minimum raise
-        Math.min(currentGameBet + Math.floor(potSize * 0.5), playerChips), // Half pot raise
-        Math.min(currentGameBet + potSize, playerChips), // Full pot raise
-        Math.min(currentGameBet + Math.floor(potSize * 0.75), playerChips) // 3/4 pot raise
-      ].filter(amount => amount >= minRaiseTotal && amount <= playerChips);
-      
-      console.log('Mock LLM raise calculation:', {
-        currentGameBet,
-        minRaiseSize,
-        minRaiseTotal,
-        playerChips,
-        validRaiseAmounts
-      });
-      
-      if (validRaiseAmounts.length > 0) {
-        const raiseAmount = validRaiseAmounts[Math.floor(Math.random() * validRaiseAmounts.length)];
-        mockDecisions.push({ action: 'raise', amount: raiseAmount, reasoning: `Mock: Strong hand, raising to ${raiseAmount}` });
-      } else {
-        console.log('Mock LLM: No valid raise amounts, will not include raise action');
+    // Determine betting round
+    let round = 'preflop';
+    if (roundMatch) {
+      round = roundMatch[1].toLowerCase();
+    } else if (prompt.includes('Community cards:')) {
+      const communityMatch = prompt.match(/Community cards: (.+)/);
+      if (communityMatch) {
+        const communityCards = communityMatch[1].split(', ').filter(card => card.trim() !== '');
+        if (communityCards.length === 3) round = 'flop';
+        else if (communityCards.length === 4) round = 'turn';
+        else if (communityCards.length === 5) round = 'river';
       }
     }
     
-    if (availableActions.includes('all-in')) {
-      mockDecisions.push({ action: 'all-in', amount: 0, reasoning: 'Mock: Going all-in with strong hand' });
+    return {
+      availableActions,
+      callAmount,
+      potSize,
+      playerChips,
+      minRaise,
+      potOdds,
+      totalPlayers: totalPlayersMatch ? parseInt(totalPlayersMatch[1]) : 6,
+      position: positionMatch ? positionMatch[1] : 'unknown',
+      round,
+      stackSize: playerChips // chips remaining
+    };
+  }
+
+  /**
+   * Evaluate hand strength from prompt information
+   * @param {string} prompt - The prompt containing hand information
+   * @returns {number} Hand strength (0-1000)
+   */
+  evaluateHandFromPrompt(prompt) {
+    // Extract hole cards
+    const holeCardsMatch = prompt.match(/Your hole cards: (.+)/);
+    if (!holeCardsMatch) return 200; // Default weak hand
+    
+    const holeCardsStr = holeCardsMatch[1];
+    const holeCards = this.parseCards(holeCardsStr);
+    
+    // Extract community cards
+    const communityMatch = prompt.match(/Community cards: (.+)/);
+    const communityCards = communityMatch ? this.parseCards(communityMatch[1]) : [];
+    
+    // Use fallback evaluation for now (can be improved later with proper async handling)
+    return this.fallbackHandEvaluation(holeCards, communityCards);
+  }
+
+  /**
+   * Parse cards from string representation
+   * @param {string} cardsStr - Cards string like "A♠, K♥"
+   * @returns {Array} Array of card objects
+   */
+  parseCards(cardsStr) {
+    if (!cardsStr || cardsStr.trim() === '') return [];
+    
+    return cardsStr.split(', ')
+      .map(cardStr => cardStr.trim())
+      .filter(cardStr => cardStr.length >= 2)
+      .map(cardStr => {
+        const rank = cardStr.slice(0, -1);
+        const suit = cardStr.slice(-1);
+        return { rank, suit };
+      });
+  }
+
+  /**
+   * Fallback hand evaluation if main evaluation fails
+   * @param {Array} holeCards - Hole cards
+   * @param {Array} communityCards - Community cards
+   * @returns {number} Hand strength estimate
+   */
+  fallbackHandEvaluation(holeCards, communityCards) {
+    if (!holeCards || holeCards.length < 2) return 200;
+    
+    const [card1, card2] = holeCards;
+    const rank1 = this.getCardRank(card1.rank);
+    const rank2 = this.getCardRank(card2.rank);
+    const isPair = rank1 === rank2;
+    const highCard = Math.max(rank1, rank2);
+    
+    // Simple pre-flop evaluation
+    if (communityCards.length === 0) {
+      const isSuited = card1.suit === card2.suit;
+      const isConnected = Math.abs(rank1 - rank2) <= 1;
+      
+      if (isPair) {
+        if (rank1 >= 14) return 950; // AA
+        if (rank1 >= 13) return 900; // KK
+        if (rank1 >= 12) return 850; // QQ
+        if (rank1 >= 11) return 800; // JJ
+        if (rank1 >= 10) return 750; // TT
+        if (rank1 >= 9) return 700; // 99
+        if (rank1 >= 7) return 600; // 77-88
+        return 500 + rank1 * 15; // Small pairs
+      } else {
+        // High card combinations
+        if (highCard >= 14 && rank2 >= 10) return 650 + (rank2 - 10) * 20; // AK, AQ, AJ, AT
+        if (highCard >= 13 && rank2 >= 10) return 550 + (rank2 - 10) * 15; // KQ, KJ, KT
+        if (highCard >= 12 && rank2 >= 10) return 450 + (rank2 - 10) * 10; // QJ, QT
+        if (isSuited && isConnected && highCard >= 8) return 400 + highCard * 10; // Suited connectors
+        if (isSuited && highCard >= 10) return 350 + highCard * 8; // Suited cards
+        if (isConnected && highCard >= 9) return 300 + highCard * 5; // Connectors
+        if (highCard >= 12) return 250 + highCard * 8; // High cards
+        return 150 + highCard * 5 + rank2 * 2; // Weak hands
+      }
     }
     
-    // If no valid decisions (shouldn't happen), default to fold
-    if (mockDecisions.length === 0) {
-      mockDecisions.push({ action: 'fold', amount: 0, reasoning: 'Mock: Emergency fold - no valid actions detected' });
+    // Post-flop fallback - more realistic evaluation
+    let strength = 300; // Base strength
+    
+    // Check for potential pairs, draws, etc.
+    const allCards = [...holeCards, ...communityCards];
+    const ranks = allCards.map(card => this.getCardRank(card.rank));
+    const suits = allCards.map(card => card.suit);
+    
+    // Basic pair detection
+    const rankCounts = {};
+    ranks.forEach(rank => rankCounts[rank] = (rankCounts[rank] || 0) + 1);
+    const counts = Object.values(rankCounts).sort((a, b) => b - a);
+    
+    if (counts[0] >= 2) strength += 200; // Pair or better
+    if (counts[0] >= 3) strength += 300; // Three of a kind or better
+    if (counts[0] >= 4) strength += 400; // Four of a kind
+    
+    // Basic flush draw detection
+    const suitCounts = {};
+    suits.forEach(suit => suitCounts[suit] = (suitCounts[suit] || 0) + 1);
+    const maxSuitCount = Math.max(...Object.values(suitCounts));
+    if (maxSuitCount >= 4) strength += 50; // Flush draw
+    if (maxSuitCount >= 5) strength += 200; // Flush
+    
+    return Math.min(900, strength);
+  }
+
+  /**
+   * Get numeric rank for card
+   * @param {string} rank - Card rank (A, K, Q, J, 10, 9, etc.)
+   * @returns {number} Numeric rank
+   */
+  getCardRank(rank) {
+    if (rank === 'A') return 14;
+    if (rank === 'K') return 13;
+    if (rank === 'Q') return 12;
+    if (rank === 'J') return 11;
+    return parseInt(rank);
+  }
+
+  /**
+   * Make mathematical decision based on game context and hand strength
+   * @param {Object} context - Game context
+   * @param {number} handStrength - Hand strength (0-1000)
+   * @returns {Object} Decision object
+   */
+  makeMathematicalDecision(context, handStrength) {
+    const { availableActions, callAmount, potSize, potOdds, position, round, stackSize } = context;
+    
+    // Position multipliers (early position plays tighter)
+    const positionMultiplier = this.getPositionMultiplier(position);
+    const adjustedHandStrength = handStrength * positionMultiplier;
+    
+    // Stack size considerations
+    const stackRatio = stackSize / potSize;
+    const isShortStack = stackRatio < 10;
+    const isDeepStack = stackRatio > 50;
+    
+    // Decision thresholds based on hand strength (lowered to be more aggressive)
+    const foldThreshold = round === 'preflop' ? 180 : 150;
+    const callThreshold = round === 'preflop' ? 300 : 250;
+    const raiseThreshold = round === 'preflop' ? 500 : 450;
+    const allInThreshold = round === 'preflop' ? 750 : 700;
+    
+    // Check if we're getting good pot odds (more lenient)
+    const hasGoodPotOdds = potOdds >= 2.5; // 2.5:1 or better
+    const hasGreatPotOdds = potOdds >= 4.0; // 4:1 or better
+    
+    
+    // Add some semi-bluffing and position-based aggression
+    const shouldBluff = Math.random() < 0.15 && position === 'Button' && round !== 'preflop';
+    const shouldSemiBluff = Math.random() < 0.1 && adjustedHandStrength >= 200 && round === 'flop';
+    
+    // Decision logic with improved aggression
+    if (adjustedHandStrength >= allInThreshold || (isShortStack && adjustedHandStrength >= raiseThreshold)) {
+      // Very strong hand or short stack with good hand
+      if (availableActions.includes('all-in')) {
+        return { action: 'all-in', amount: 0, reasoning: 'Very strong hand - all-in' };
+      } else if (availableActions.includes('raise')) {
+        const raiseAmount = this.calculateRaiseAmount(context, 'aggressive');
+        return { action: 'raise', amount: raiseAmount, reasoning: 'Strong hand - aggressive raise' };
+      } else if (availableActions.includes('call')) {
+        return { action: 'call', amount: 0, reasoning: 'Strong hand - call' };
+      }
+    } else if (adjustedHandStrength >= raiseThreshold || shouldBluff || shouldSemiBluff) {
+      // Strong hand, bluff, or semi-bluff - raise for value or as bluff
+      if (availableActions.includes('raise')) {
+        const strategy = shouldBluff ? 'bluff' : (shouldSemiBluff ? 'aggressive' : 'value');
+        const raiseAmount = this.calculateRaiseAmount(context, strategy);
+        const reasoning = shouldBluff ? 'Position bluff' : (shouldSemiBluff ? 'Semi-bluff with draws' : 'Strong hand - value raise');
+        return { action: 'raise', amount: raiseAmount, reasoning };
+      } else if (availableActions.includes('call')) {
+        return { action: 'call', amount: 0, reasoning: 'Strong hand - call' };
+      }
+    } else if (adjustedHandStrength >= callThreshold || (hasGoodPotOdds && adjustedHandStrength >= 200) || hasGreatPotOdds) {
+      // Decent hand, good pot odds, or great pot odds - call
+      if (availableActions.includes('call')) {
+        const reasoning = hasGreatPotOdds ? 'Great pot odds - call' : (hasGoodPotOdds ? 'Good pot odds - call' : 'Decent hand - call');
+        return { action: 'call', amount: 0, reasoning };
+      } else if (availableActions.includes('check')) {
+        return { action: 'check', amount: 0, reasoning: 'Decent hand - check' };
+      }
+    } else if (adjustedHandStrength >= foldThreshold && callAmount === 0) {
+      // Weak hand but free to see more cards
+      if (availableActions.includes('check')) {
+        return { action: 'check', amount: 0, reasoning: 'Weak hand - check for free card' };
+      }
+    } else if (hasGreatPotOdds && adjustedHandStrength >= 100) {
+      // Great pot odds with any hand - call
+      if (availableActions.includes('call')) {
+        return { action: 'call', amount: 0, reasoning: 'Great pot odds - speculative call' };
+      }
     }
     
-    const decision = mockDecisions[Math.floor(Math.random() * mockDecisions.length)];
-    console.log('Mock LLM decision:', decision);
-    return JSON.stringify(decision);
+    // Default to fold
+    if (availableActions.includes('fold')) {
+      return { action: 'fold', amount: 0, reasoning: 'Weak hand - fold' };
+    }
+    
+    // Emergency fallback
+    return { action: availableActions[0], amount: 0, reasoning: 'Emergency fallback decision' };
+  }
+
+  /**
+   * Get position multiplier for hand strength
+   * @param {string} position - Player position
+   * @returns {number} Multiplier (0.8 to 1.2)
+   */
+  getPositionMultiplier(position) {
+    switch (position.toLowerCase()) {
+      case 'button': return 1.15;
+      case 'cutoff': return 1.05;
+      case 'small blind': return 0.95;
+      case 'big blind': return 1.0; // BB gets to see flop cheap
+      case 'under the gun': return 0.85;
+      default: return 0.95;
+    }
+  }
+
+  /**
+   * Calculate raise amount based on context and strategy
+   * @param {Object} context - Game context
+   * @param {string} strategy - 'value', 'aggressive', 'bluff'
+   * @returns {number} Raise amount
+   */
+  calculateRaiseAmount(context, strategy = 'value') {
+    const { potSize, minRaise, playerChips, callAmount } = context;
+    const currentGameBet = callAmount; // Estimate current bet level
+    
+    let raiseMultiplier;
+    switch (strategy) {
+      case 'aggressive':
+        raiseMultiplier = 0.8 + Math.random() * 0.4; // 80-120% pot
+        break;
+      case 'value':
+        raiseMultiplier = 0.5 + Math.random() * 0.3; // 50-80% pot
+        break;
+      case 'bluff':
+        raiseMultiplier = 0.6 + Math.random() * 0.2; // 60-80% pot
+        break;
+      default:
+        raiseMultiplier = 0.6; // 60% pot
+    }
+    
+    const targetRaise = Math.floor(potSize * raiseMultiplier);
+    const minRaiseTotal = currentGameBet + Math.max(minRaise, 200);
+    const maxRaiseTotal = Math.min(playerChips, currentGameBet + Math.floor(potSize * 1.5));
+    
+    // Ensure raise is within valid bounds
+    const raiseAmount = Math.max(minRaiseTotal, Math.min(targetRaise, maxRaiseTotal));
+    return raiseAmount;
   }
 
   /**

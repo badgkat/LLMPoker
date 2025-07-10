@@ -56,12 +56,6 @@ export class GameEngine {
    * @returns {GameState} Initial game state
    */
   initializeGame(playerSetup) {
-    // Comprehensive logging for initialization
-    console.log('===== GAME INITIALIZATION START =====');
-    console.log('GameEngine.initializeGame received playerSetup:', playerSetup);
-    console.log('GameEngine.initializeGame humanPlayer:', playerSetup?.humanPlayer);
-    console.log('GameEngine.initializeGame humanPlayer type:', typeof playerSetup?.humanPlayer);
-    console.log('GameEngine.initializeGame humanPlayer keys:', Object.keys(playerSetup?.humanPlayer || {}));
     
     // Strict validation - no fallbacks that hide errors
     if (!playerSetup) {
@@ -97,16 +91,10 @@ export class GameEngine {
       }
     });
     
-    console.log('GameEngine validation passed, using playerSetup:', playerSetup);
     
     // Randomly assign seat positions (0-8)
     const availableSeats = Array.from({length: 9}, (_, i) => i);
     const shuffledSeats = this.shuffleArray(availableSeats);
-    
-    console.log('Available seats:', availableSeats);
-    console.log('Shuffled seats:', shuffledSeats);
-    console.log('Human player will get seat:', shuffledSeats[0]);
-    console.log('AI players will get seats:', shuffledSeats.slice(1));
 
     // Create human player
     const humanPlayer = {
@@ -124,7 +112,6 @@ export class GameEngine {
       actualStrategy: null
     };
     
-    console.log('Created human player:', humanPlayer);
     
     const players = [
       humanPlayer,
@@ -157,7 +144,6 @@ export class GameEngine {
           actualStrategy: actualStrategy
         };
         
-        console.log(`Created AI player ${index + 1}:`, aiPlayer);
         return aiPlayer;
       })
     ];
@@ -189,10 +175,6 @@ export class GameEngine {
       showingSummary: false,
       actionCount: 0
     };
-
-    console.log('GameEngine created players:', players);
-    console.log('GameEngine created gameState:', gameState);
-    console.log('===== GAME INITIALIZATION END =====');
     
     this.emit('gameInitialized', { gameState, players });
     return gameState;
@@ -538,8 +520,6 @@ export class GameEngine {
    * @returns {GameState} Updated game state
    */
   handleAllInSituation(gameState) {
-    console.log('===== HANDLING ALL-IN SITUATION =====');
-    console.log('Current betting round:', gameState.bettingRound);
     
     const activePlayers = gameState.players.filter(p => p.isActive);
     
@@ -554,8 +534,6 @@ export class GameEngine {
     // Deal all remaining community cards at once
     switch (gameState.bettingRound) {
       case BETTING_ROUNDS.PREFLOP:
-        // Deal flop (3), turn (1), river (1) = 5 cards total + 3 burns
-        console.log('All-in preflop: dealing flop, turn, and river');
         
         // Burn and deal flop
         if (newDeck.length > 0) {
@@ -567,7 +545,6 @@ export class GameEngine {
             const { cards: flopCards, remainingDeck: afterFlop } = dealCards(newDeck, 3);
             newCommunityCards.push(...flopCards);
             newDeck = afterFlop;
-            console.log('Dealt flop:', flopCards);
           }
         }
         
@@ -581,7 +558,6 @@ export class GameEngine {
             const { cards: turnCards, remainingDeck: afterTurn } = dealCards(newDeck, 1);
             newCommunityCards.push(...turnCards);
             newDeck = afterTurn;
-            console.log('Dealt turn:', turnCards);
           }
         }
         
@@ -595,15 +571,11 @@ export class GameEngine {
             const { cards: riverCards, remainingDeck: afterRiver } = dealCards(newDeck, 1);
             newCommunityCards.push(...riverCards);
             newDeck = afterRiver;
-            console.log('Dealt river:', riverCards);
           }
         }
         break;
         
       case BETTING_ROUNDS.FLOP:
-        // Deal turn (1), river (1) = 2 cards total + 2 burns
-        console.log('All-in on flop: dealing turn and river');
-        
         // Burn and deal turn
         if (newDeck.length > 0) {
           const { burnCard: turnBurn, remainingDeck: afterTurnBurn } = burnCard(newDeck);
@@ -614,7 +586,6 @@ export class GameEngine {
             const { cards: turnCards, remainingDeck: afterTurn } = dealCards(newDeck, 1);
             newCommunityCards.push(...turnCards);
             newDeck = afterTurn;
-            console.log('Dealt turn:', turnCards);
           }
         }
         
@@ -628,15 +599,11 @@ export class GameEngine {
             const { cards: riverCards, remainingDeck: afterRiver } = dealCards(newDeck, 1);
             newCommunityCards.push(...riverCards);
             newDeck = afterRiver;
-            console.log('Dealt river:', riverCards);
           }
         }
         break;
         
       case BETTING_ROUNDS.TURN:
-        // Deal river (1) = 1 card + 1 burn
-        console.log('All-in on turn: dealing river');
-        
         // Burn and deal river
         if (newDeck.length > 0) {
           const { burnCard: riverBurn, remainingDeck: afterRiverBurn } = burnCard(newDeck);
@@ -647,14 +614,11 @@ export class GameEngine {
             const { cards: riverCards, remainingDeck: afterRiver } = dealCards(newDeck, 1);
             newCommunityCards.push(...riverCards);
             newDeck = afterRiver;
-            console.log('Dealt river:', riverCards);
           }
         }
         break;
         
       case BETTING_ROUNDS.RIVER:
-        // Already at river, go to showdown
-        console.log('All-in on river: going to showdown');
         break;
     }
     
@@ -667,10 +631,7 @@ export class GameEngine {
       bettingRound: BETTING_ROUNDS.RIVER,
       processingPhase: false
     };
-    
-    console.log('All community cards dealt, going to showdown');
-    console.log('Final community cards:', newCommunityCards);
-    
+
     // Emit event for all cards being dealt
     this.emit('allInShowdown', { 
       gameState: updatedState, 
@@ -827,7 +788,9 @@ export class GameEngine {
       ...gameState,
       players: updatedPlayers,
       pot: 0,
-      sidePots: []
+      sidePots: [],
+      activePlayer: -1,
+      processingPhase: true
     };
 
     this.emit('showdownComplete', { 
@@ -861,7 +824,9 @@ export class GameEngine {
       ...gameState,
       players: updatedPlayers,
       pot: 0,
-      sidePots: []
+      sidePots: [],
+      activePlayer: -1,
+      processingPhase: true
     };
     
     this.emit('handEndedEarly', { 

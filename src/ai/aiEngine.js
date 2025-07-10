@@ -2,6 +2,7 @@ import { AI_STRATEGIES, AI_STRATEGY_DESCRIPTIONS } from '../constants/aiConstant
 import { getAvailableActions } from '../utils/pokerLogic.js';
 import { formatCards } from '../utils/deckUtils.js';
 import { llmService } from '../services/llmService.js';
+import { logAIReasoning } from '../utils/detailedLogger.js';
 
 /**
  * @typedef {import('../store/types.js').Player} Player
@@ -25,28 +26,69 @@ export class AIEngine {
    * @returns {Promise<AIDecision>} AI decision
    */
   async getAIDecision(player, gameState, gameContext) {
-    console.log(`===== AI DECISION START: ${player.name} =====`);
-    console.log('Player:', player);
-    console.log('Game state:', gameState);
-    console.log('Game context:', gameContext);
+    
+    const startTime = Date.now();
     
     try {
       // Try LLM service first if available
       if (this.isLLMAvailable()) {
-        console.log('Using LLM service for AI decision');
         const decision = await this.getLLMAIDecision(player, gameState, gameContext);
-        console.log('LLM decision:', decision);
+        
+        // Log AI reasoning
+        logAIReasoning({
+          playerId: player.id,
+          playerName: player.name,
+          strategy: player.actualStrategy || player.strategy,
+          gameContext: gameContext,
+          prompt: decision.prompt || null,
+          reasoning: decision.reasoning || 'LLM reasoning not available',
+          decision: {
+            action: decision.action,
+            amount: decision.amount
+          },
+          thinkingTime: Date.now() - startTime,
+          alternatives: decision.alternatives || null
+        });
+        
         return decision;
       }
       
       // Use rule-based AI if LLM is not available
-      console.log('Using rule-based AI for decision');
       const decision = this.getFallbackAIDecision(player, gameState);
-      console.log('Rule-based decision:', decision);
+      
+      // Log AI reasoning for rule-based decision
+      logAIReasoning({
+        playerId: player.id,
+        playerName: player.name,
+        strategy: player.actualStrategy || player.strategy,
+        gameContext: gameContext,
+        prompt: null,
+        reasoning: decision.reasoning || 'Rule-based decision logic',
+        decision: {
+          action: decision.action,
+          amount: decision.amount
+        },
+        thinkingTime: Date.now() - startTime,
+        alternatives: decision.alternatives || null
+      });
+      
       return decision;
     } catch (error) {
       console.error(`AI_DECISION_ERROR for ${player.name}:`, error);
       console.error('Error stack:', error.stack);
+      
+      // Log the error
+      logAIReasoning({
+        playerId: player.id,
+        playerName: player.name,
+        strategy: player.actualStrategy || player.strategy,
+        gameContext: gameContext,
+        prompt: null,
+        reasoning: `ERROR: ${error.message}`,
+        decision: null,
+        thinkingTime: Date.now() - startTime,
+        alternatives: null
+      });
       
       // DO NOT hide the error with emergency fallback - let it bubble up
       throw error;
@@ -78,15 +120,6 @@ export class AIEngine {
       gameState.bigBlind
     );
 
-    console.log(`AI ${player.name} available actions:`, availableActions);
-    console.log(`AI ${player.name} current situation:`, {
-      currentBet: player.currentBet,
-      gameCurrentBet: gameState.currentBet,
-      chips: player.chips,
-      callAmount: gameState.currentBet - player.currentBet,
-      isActive: player.isActive,
-      isAllIn: player.isAllIn
-    });
 
     const prompt = this.buildLLMPrompt(
       player, 
@@ -102,11 +135,8 @@ export class AIEngine {
       action: response.action,
       amount: response.amount,
       reasoning: response.reasoning
-    };
-    
-    console.log(`AI ${player.name} decision:`, decision);
-    console.log(`AI ${player.name} available actions were:`, availableActions);
-    
+    };  
+
     // Validate decision
     if (!availableActions.includes(decision.action)) {
       console.error(`AI ${player.name} ACTION VALIDATION FAILED:`);

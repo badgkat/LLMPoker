@@ -86,9 +86,14 @@ const ActionPanel = ({ darkMode = false }) => {
   const getActionLabel = useCallback((action) => {
     switch (action) {
       case PLAYER_ACTIONS.RAISE:
+        // In pre-flop, if current bet equals big blind and no one has raised, show "BET"
+        const isPreflop = gameState.bettingRound === 'preflop';
+        const isFirstRaise = gameState.currentBet === gameState.bigBlind;
+        const shouldShowBet = isPreflop && isFirstRaise;
+        
         return (
           <div className="text-center">
-            <div>RAISE</div>
+            <div>{shouldShowBet ? 'BET' : 'RAISE'}</div>
             <div className="text-xs">({localBetAmount.toLocaleString()})</div>
           </div>
         );
@@ -110,7 +115,7 @@ const ActionPanel = ({ darkMode = false }) => {
       default:
         return action.toUpperCase();
     }
-  }, [localBetAmount, getCallAmount, currentPlayer]);
+  }, [localBetAmount, getCallAmount, currentPlayer, gameState.bettingRound, gameState.currentBet, gameState.bigBlind]);
 
   const themeClasses = darkMode ? {
     card: 'bg-gray-800 border-gray-700',
@@ -180,9 +185,10 @@ const ActionPanel = ({ darkMode = false }) => {
     );
   }
 
+
   // Main action panel for human player's turn
   return (
-    <div className={`${themeClasses.card} rounded-xl p-3 border h-full flex flex-col overflow-hidden`} style={{ minHeight: '250px', maxHeight: '260px' }}>
+    <div className={`${themeClasses.card} rounded-xl p-3 border h-full flex flex-col`} style={{ minHeight: '250px', maxHeight: '320px' }}>
       <h3 className={`text-base font-bold mb-2 text-center ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
         🎯 Your Turn
       </h3>
@@ -244,7 +250,7 @@ const ActionPanel = ({ darkMode = false }) => {
       
       {/* Action Buttons */}
       <div className="flex-1 flex flex-col justify-end">
-        <div className="grid grid-cols-2 gap-2">
+        <div className={`grid gap-2 ${availableActions.length <= 2 ? 'grid-cols-2' : availableActions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
           {availableActions.map(action => (
             <button 
               key={action} 

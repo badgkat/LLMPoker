@@ -4,7 +4,7 @@ This file contains development context, patterns, and slash commands to make fut
 
 ## 📋 Project Overview
 
-**LLM Poker** is a sophisticated Texas Hold'em poker application featuring AI opponents powered by Large Language Models. The project was refactored from a monolithic 1,650-line React component into a modern, modular architecture.
+**LLM Poker** is a sophisticated Texas Hold'em poker application featuring AI opponents powered by Large Language Models. The project was refactored from a monolithic 1,650-line React component into a modern, modular architecture. The program is built with the intention of testing and evaluating LLM performance in poker. The ultimate goal is to show up Nate Silver and Maria Konnikova in a eventual exhibition match. 
 
 ### 🎯 Key Characteristics
 - **Architecture**: Modern React with Vite build system
@@ -15,6 +15,9 @@ This file contains development context, patterns, and slash commands to make fut
 - **Testing**: Vitest with component tests
 
 ## 📁 Project Structure & Key Files
+
+**Error Screenshots**
+User will place any screen shots to assist with visual explinations of issues in .claude/errorScreenshots
 
 ```
 LLMPoker/
@@ -187,6 +190,9 @@ Add input validation and error handling for user actions or API calls.
 ### `/setup-deploy`
 Configure deployment pipeline, environment variables, and production optimizations.
 
+### `/img`
+Access the images in the .claude/errorScreenShots folder to access immages the user has uploaded
+
 ## 🔧 Development Commands
 
 ```bash
@@ -260,22 +266,23 @@ test('should correctly evaluate poker hands', () => {
 ## 🔮 Future Enhancement Ideas
 
 ### 🎯 High Priority
-- **Tournament Progression**: Multi-table tournaments with blind increases
 - **Player Statistics**: Detailed analytics and hand history
-- **Mobile Optimization**: Touch-friendly interface for mobile devices
 - **Real-time Multiplayer**: WebSocket integration for live games
+- **Streaming Integration**: Twitch/YouTube broadcasting
+- **Advanced Analytics**: Machine learning insights
 
 ### 🔄 Medium Priority  
 - **Hand Replay System**: Step-through previous hands
 - **AI Personality Expansion**: More detailed AI behaviors
-- **Custom Game Modes**: Omaha, Stud, and other poker variants
-- **Achievement System**: Unlock rewards and badges
+- **Add AI Chat** To allow the LLM to enhance its ability to bluff and be bluffed
 
 ### 💡 Low Priority
-- **Voice Commands**: Speech-to-text for actions
+- **Voice Commands**: Speech-to-text for actions and human chat
 - **VR Integration**: Virtual reality poker table
-- **Streaming Integration**: Twitch/YouTube broadcasting
-- **Advanced Analytics**: Machine learning insights
+- **Mobile Optimization**: Touch-friendly interface for mobile devices
+- **Tournament Progression**: Multi-table tournaments with blind increases
+- **Custom Game Modes**: Omaha, Stud, and other poker variants
+- **Achievement System**: Unlock rewards and badges
 
 ## 🐛 Common Issues & Solutions
 

@@ -7,19 +7,401 @@ import { PLAYER_ACTIONS } from '../constants/gameConstants.js';
  */
 
 /**
- * Evaluate a poker hand (simplified version)
+ * Evaluate a poker hand strength for AI decision making
  * @param {Card[]} holeCards - Player's hole cards
  * @param {Card[]} communityCards - Community cards
  * @returns {HandEvaluation} Hand evaluation result
  */
 export const evaluateHand = (holeCards, communityCards) => {
-  // This is a placeholder - in a real implementation, you'd want proper hand evaluation
-  // For now, just return a random strength with the actual cards
+  if (!holeCards || holeCards.length !== 2) {
+    return { strength: 0, description: "Invalid Hand", cards: [] };
+  }
+
+  const allCards = [...holeCards, ...communityCards];
+  
+  // Pre-flop hand strength evaluation
+  if (communityCards.length === 0) {
+    return evaluatePreFlopHand(holeCards);
+  }
+  
+  // Post-flop hand strength evaluation
+  return evaluatePostFlopHand(allCards, holeCards);
+};
+
+/**
+ * Evaluate pre-flop hand strength
+ * @param {Card[]} holeCards - Player's hole cards
+ * @returns {HandEvaluation} Hand evaluation result
+ */
+const evaluatePreFlopHand = (holeCards) => {
+  const [card1, card2] = holeCards;
+  const rank1 = getCardRank(card1);
+  const rank2 = getCardRank(card2);
+  const suit1 = card1.suit;
+  const suit2 = card2.suit;
+  
+  const isPair = rank1 === rank2;
+  const isSuited = suit1 === suit2;
+  const isConnected = Math.abs(rank1 - rank2) === 1;
+  const highCard = Math.max(rank1, rank2);
+  const lowCard = Math.min(rank1, rank2);
+  
+  let strength = 0;
+  let description = "High Card";
+  
+  // Premium pairs
+  if (isPair) {
+    if (rank1 >= 14) { // Aces
+      strength = 950;
+      description = "Pocket Aces";
+    } else if (rank1 >= 13) { // Kings
+      strength = 900;
+      description = "Pocket Kings";
+    } else if (rank1 >= 12) { // Queens
+      strength = 850;
+      description = "Pocket Queens";
+    } else if (rank1 >= 11) { // Jacks
+      strength = 800;
+      description = "Pocket Jacks";
+    } else if (rank1 >= 10) { // Tens
+      strength = 750;
+      description = "Pocket Tens";
+    } else if (rank1 >= 9) { // Nines
+      strength = 700;
+      description = "Pocket Nines";
+    } else if (rank1 >= 7) { // Sevens and Eights
+      strength = 600 + (rank1 - 7) * 25;
+      description = `Pocket ${getCardName(rank1)}s`;
+    } else { // Small pairs
+      strength = 500 + rank1 * 10;
+      description = `Pocket ${getCardName(rank1)}s`;
+    }
+  } else {
+    // High card combinations
+    if (highCard === 14 && lowCard >= 10) { // Ace with high card
+      strength = 700 + (lowCard - 10) * 20;
+      description = `Ace ${getCardName(lowCard)}${isSuited ? ' suited' : ''}`;
+    } else if (highCard === 13 && lowCard >= 10) { // King with high card
+      strength = 600 + (lowCard - 10) * 15;
+      description = `King ${getCardName(lowCard)}${isSuited ? ' suited' : ''}`;
+    } else if (highCard === 12 && lowCard >= 10) { // Queen with high card
+      strength = 550 + (lowCard - 10) * 15;
+      description = `Queen ${getCardName(lowCard)}${isSuited ? ' suited' : ''}`;
+    } else if (highCard >= 11 && lowCard >= 10) { // Jack-Ten
+      strength = 500;
+      description = `Jack ${getCardName(lowCard)}${isSuited ? ' suited' : ''}`;
+    } else if (isSuited && isConnected && highCard >= 7) { // Suited connectors
+      strength = 400 + highCard * 10;
+      description = `${getCardName(lowCard)}-${getCardName(highCard)} suited`;
+    } else if (isConnected && highCard >= 9) { // Offsuit connectors
+      strength = 300 + highCard * 5;
+      description = `${getCardName(lowCard)}-${getCardName(highCard)} offsuit`;
+    } else if (isSuited && highCard >= 10) { // Suited cards
+      strength = 350 + highCard * 5;
+      description = `${getCardName(lowCard)}-${getCardName(highCard)} suited`;
+    } else if (highCard >= 12) { // High card
+      strength = 200 + highCard * 10;
+      description = `${getCardName(highCard)} high`;
+    } else {
+      // Weak hands
+      strength = 100 + highCard * 5 + lowCard * 2;
+      description = `${getCardName(highCard)}-${getCardName(lowCard)} offsuit`;
+    }
+  }
+  
+  // Bonus for suited
+  if (isSuited && !isPair) {
+    strength += 25;
+  }
+  
   return {
-    strength: Math.random() * 1000,
-    description: "High Card", // Placeholder
+    strength: Math.max(0, Math.min(1000, strength)),
+    description,
     cards: [...holeCards]
   };
+};
+
+/**
+ * Evaluate post-flop hand strength (simplified)
+ * @param {Card[]} allCards - All available cards
+ * @param {Card[]} holeCards - Player's hole cards
+ * @returns {HandEvaluation} Hand evaluation result
+ */
+const evaluatePostFlopHand = (allCards, holeCards) => {
+  // Get detailed hand analysis
+  const detailedRank = getDetailedHandRank(allCards);
+  
+  // Calculate hand strength based on rank and specifics
+  let strength = 0;
+  let description = "High Card";
+  
+  if (detailedRank.isStraightFlush) {
+    strength = 990 + detailedRank.highCard * 2;
+    if (detailedRank.highCard === 14) {
+      description = "Royal Flush";
+    } else {
+      description = `Straight Flush, ${getCardName(detailedRank.highCard)} high`;
+    }
+  } else if (detailedRank.isFourOfAKind) {
+    strength = 950 + detailedRank.quads * 5;
+    description = `Four of a Kind, ${getCardName(detailedRank.quads)}s`;
+  } else if (detailedRank.isFullHouse) {
+    strength = 900 + detailedRank.trips * 5 + detailedRank.pair;
+    description = `Full House, ${getCardName(detailedRank.trips)}s over ${getCardName(detailedRank.pair)}s`;
+  } else if (detailedRank.isFlush) {
+    strength = 850 + detailedRank.highCard * 5;
+    description = `Flush, ${getCardName(detailedRank.highCard)} high`;
+  } else if (detailedRank.isStraight) {
+    strength = 800 + detailedRank.highCard * 5;
+    if (detailedRank.highCard === 5) {
+      description = "Straight, Five high (wheel)";
+    } else {
+      description = `Straight, ${getCardName(detailedRank.highCard)} high`;
+    }
+  } else if (detailedRank.isThreeOfAKind) {
+    strength = 700 + detailedRank.trips * 10;
+    description = `Three of a Kind, ${getCardName(detailedRank.trips)}s`;
+  } else if (detailedRank.isTwoPair) {
+    strength = 500 + detailedRank.highPair * 5 + detailedRank.lowPair * 2;
+    description = `Two Pair, ${getCardName(detailedRank.highPair)}s over ${getCardName(detailedRank.lowPair)}s`;
+    if (detailedRank.kicker) {
+      description += ` with ${getCardName(detailedRank.kicker)} kicker`;
+    }
+  } else if (detailedRank.isPair) {
+    strength = 300 + detailedRank.pair * 10;
+    description = `Pair of ${getCardName(detailedRank.pair)}s`;
+    if (detailedRank.kickers && detailedRank.kickers.length > 0) {
+      description += ` with ${getCardName(detailedRank.kickers[0])} kicker`;
+    }
+  } else {
+    // High card hand
+    strength = 100 + detailedRank.highCard * 5;
+    description = `${getCardName(detailedRank.highCard)} high`;
+    if (detailedRank.kickers && detailedRank.kickers.length > 0) {
+      description += `, ${getCardName(detailedRank.kickers[0])} kicker`;
+    }
+  }
+  
+  // Add draw potential (simplified)
+  const drawPotential = calculateDrawPotential(allCards);
+  strength += drawPotential;
+  
+  return {
+    strength: Math.max(0, Math.min(1000, strength)),
+    description,
+    cards: [...holeCards],
+    rank: detailedRank
+  };
+};
+
+/**
+ * Convert card rank to numeric value
+ * @param {Card} card - Card object
+ * @returns {number} Numeric rank (2-14)
+ */
+const getCardRank = (card) => {
+  const rank = card.rank;
+  if (rank === 'A') return 14;
+  if (rank === 'K') return 13;
+  if (rank === 'Q') return 12;
+  if (rank === 'J') return 11;
+  return parseInt(rank);
+};
+
+/**
+ * Get card name from rank
+ * @param {number} rank - Numeric rank
+ * @returns {string} Card name
+ */
+const getCardName = (rank) => {
+  if (rank === 14) return 'Ace';
+  if (rank === 13) return 'King';
+  if (rank === 12) return 'Queen';
+  if (rank === 11) return 'Jack';
+  return rank.toString();
+};
+
+/**
+ * Simple hand ranking detection
+ * @param {Card[]} cards - All cards
+ * @returns {Object} Hand rank information
+ */
+const getSimpleHandRank = (cards) => {
+  const ranks = cards.map(getCardRank);
+  const suits = cards.map(card => card.suit);
+  
+  // Count occurrences
+  const rankCounts = {};
+  ranks.forEach(rank => {
+    rankCounts[rank] = (rankCounts[rank] || 0) + 1;
+  });
+  
+  const suitCounts = {};
+  suits.forEach(suit => {
+    suitCounts[suit] = (suitCounts[suit] || 0) + 1;
+  });
+  
+  const counts = Object.values(rankCounts).sort((a, b) => b - a);
+  const maxSuit = Math.max(...Object.values(suitCounts));
+  const highCard = Math.max(...ranks);
+  
+  // Check for straight (simplified)
+  const sortedRanks = [...new Set(ranks)].sort((a, b) => b - a);
+  const isStraight = sortedRanks.length >= 5 && 
+    sortedRanks.slice(0, 5).every((rank, i) => i === 0 || rank === sortedRanks[i-1] - 1);
+  
+  return {
+    isPair: counts[0] === 2,
+    isTwoPair: counts[0] === 2 && counts[1] === 2,
+    isThreeOfAKind: counts[0] === 3,
+    isStraight,
+    isFlush: maxSuit >= 5,
+    isFullHouse: counts[0] === 3 && counts[1] === 2,
+    isFourOfAKind: counts[0] === 4,
+    isStraightFlush: isStraight && maxSuit >= 5,
+    highCard
+  };
+};
+
+/**
+ * Get detailed hand ranking with specific cards and kickers
+ * @param {Card[]} cards - All cards
+ * @returns {Object} Detailed hand rank information
+ */
+const getDetailedHandRank = (cards) => {
+  const ranks = cards.map(getCardRank);
+  const suits = cards.map(card => card.suit);
+  
+  // Count occurrences of each rank
+  const rankCounts = {};
+  ranks.forEach(rank => {
+    rankCounts[rank] = (rankCounts[rank] || 0) + 1;
+  });
+  
+  // Count occurrences of each suit
+  const suitCounts = {};
+  suits.forEach(suit => {
+    suitCounts[suit] = (suitCounts[suit] || 0) + 1;
+  });
+  
+  // Get ranks sorted by count, then by rank value
+  const ranksByCount = Object.entries(rankCounts)
+    .map(([rank, count]) => ({ rank: parseInt(rank), count }))
+    .sort((a, b) => b.count - a.count || b.rank - a.rank);
+  
+  const highCard = Math.max(...ranks);
+  const maxSuitCount = Math.max(...Object.values(suitCounts));
+  const isFlush = maxSuitCount >= 5;
+  
+  // Check for straight
+  const uniqueRanks = [...new Set(ranks)].sort((a, b) => b - a);
+  let isStraight = false;
+  let straightHigh = 0;
+  
+  // Check for regular straight
+  for (let i = 0; i <= uniqueRanks.length - 5; i++) {
+    const testRanks = uniqueRanks.slice(i, i + 5);
+    if (testRanks.every((rank, idx) => idx === 0 || rank === testRanks[idx - 1] - 1)) {
+      isStraight = true;
+      straightHigh = testRanks[0];
+      break;
+    }
+  }
+  
+  // Check for wheel (A-2-3-4-5)
+  if (!isStraight && uniqueRanks.includes(14) && uniqueRanks.includes(2) && 
+      uniqueRanks.includes(3) && uniqueRanks.includes(4) && uniqueRanks.includes(5)) {
+    isStraight = true;
+    straightHigh = 5; // Five-high straight
+  }
+  
+  const isStraightFlush = isStraight && isFlush;
+  
+  // Determine hand type and extract specific information
+  const counts = ranksByCount.map(r => r.count);
+  let result = {
+    highCard: isStraight ? straightHigh : highCard,
+    kickers: []
+  };
+  
+  if (isStraightFlush) {
+    result.isStraightFlush = true;
+  } else if (counts[0] === 4) {
+    result.isFourOfAKind = true;
+    result.quads = ranksByCount[0].rank;
+    result.kicker = ranksByCount[1]?.rank;
+  } else if (counts[0] === 3 && counts[1] === 2) {
+    result.isFullHouse = true;
+    result.trips = ranksByCount[0].rank;
+    result.pair = ranksByCount[1].rank;
+  } else if (isFlush) {
+    result.isFlush = true;
+    // Get flush cards and find highest
+    const flushSuit = Object.entries(suitCounts).find(([suit, count]) => count >= 5)[0];
+    const flushCards = cards.filter(card => card.suit === flushSuit)
+      .map(card => getCardRank(card))
+      .sort((a, b) => b - a);
+    result.highCard = flushCards[0];
+    result.kickers = flushCards.slice(1, 5);
+  } else if (isStraight) {
+    result.isStraight = true;
+  } else if (counts[0] === 3) {
+    result.isThreeOfAKind = true;
+    result.trips = ranksByCount[0].rank;
+    result.kickers = ranksByCount.slice(1).map(r => r.rank).slice(0, 2);
+  } else if (counts[0] === 2 && counts[1] === 2) {
+    result.isTwoPair = true;
+    result.highPair = ranksByCount[0].rank;
+    result.lowPair = ranksByCount[1].rank;
+    result.kicker = ranksByCount[2]?.rank;
+  } else if (counts[0] === 2) {
+    result.isPair = true;
+    result.pair = ranksByCount[0].rank;
+    result.kickers = ranksByCount.slice(1).map(r => r.rank).slice(0, 3);
+  } else {
+    // High card
+    result.kickers = uniqueRanks.slice(1, 5);
+  }
+  
+  return result;
+};
+
+/**
+ * Calculate draw potential (simplified)
+ * @param {Card[]} allCards - All cards
+ * @param {Card[]} holeCards - Player's hole cards
+ * @returns {number} Draw potential bonus
+ */
+const calculateDrawPotential = (allCards) => {
+  if (allCards.length < 5) return 0; // Need at least flop
+  
+  const ranks = allCards.map(getCardRank);
+  const suits = allCards.map(card => card.suit);
+  
+  // Flush draw potential
+  const suitCounts = {};
+  suits.forEach(suit => {
+    suitCounts[suit] = (suitCounts[suit] || 0) + 1;
+  });
+  
+  const maxSuitCount = Math.max(...Object.values(suitCounts));
+  let drawBonus = 0;
+  
+  if (maxSuitCount === 4) {
+    drawBonus += 50; // Flush draw
+  }
+  
+  // Straight draw potential (simplified)
+  const uniqueRanks = [...new Set(ranks)].sort((a, b) => a - b);
+  for (let i = 0; i < uniqueRanks.length - 3; i++) {
+    const sequence = uniqueRanks.slice(i, i + 4);
+    if (sequence.every((rank, j) => j === 0 || rank === sequence[j-1] + 1)) {
+      drawBonus += 30; // Open-ended straight draw
+      break;
+    }
+  }
+  
+  return drawBonus;
 };
 
 /**
@@ -160,6 +542,7 @@ export const getAvailableActions = (player, currentBet, lastRaiseSize, bigBlind)
   
   const actions = [];
   const callAmount = currentBet - player.currentBet;
+  
   
   // Check or Call
   if (callAmount === 0) {
