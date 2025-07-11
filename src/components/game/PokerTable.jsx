@@ -18,8 +18,7 @@ import ThemeToggle from '../ui/ThemeToggle.jsx';
  * @returns {JSX.Element}
  */
 const PokerTable = ({ darkMode = false, onToggleTheme }) => {
-  const gameState = useGameState();
-  const { setHandSummary, showdownData } = useGameStore();
+  const { gameState, setHandSummary, showdownData, handSummary } = useGameStore();
   const { processAIAction, currentPlayer } = usePlayerActions();
   const { handleShowdownComplete } = useGameFlow();
 
@@ -79,10 +78,25 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
           onComplete={() => handleShowdownComplete(showdownData)}
         />
       )}
+      
+      {/* Debug info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed top-4 right-4 bg-black/80 text-white p-2 text-xs z-50 max-w-xs">
+          <div>Showdown Data: {showdownData ? 'YES' : 'NO'}</div>
+          <div>Showing Showdown: {gameState.showingShowdown ? 'YES' : 'NO'}</div>
+          <div>Phase: {gameState.phase}</div>
+          <div>Processing: {gameState.processingPhase ? 'YES' : 'NO'}</div>
+          <div>Active Player: {gameState.activePlayer}</div>
+          <div>Current Player: {currentPlayer?.name || 'NONE'}</div>
+          <div>Betting Round: {gameState.bettingRound}</div>
+          <div>Hand #: {gameState.handNumber}</div>
+          <div>Active Players: {gameState.players?.filter(p => p.isActive).length || 0}</div>
+        </div>
+      )}
 
       {/* Hand Summary Overlay */}
       <HandSummary 
-        handSummary={gameState.handSummary}
+        handSummary={handSummary}
         darkMode={darkMode}
         onClose={() => setHandSummary(null)}
       />

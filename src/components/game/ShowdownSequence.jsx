@@ -16,7 +16,15 @@ const ShowdownSequence = ({ showdownData, darkMode = false, onComplete }) => {
   const [showResults, setShowResults] = useState(false);
 
   const { handEvaluations, winners, sidePots, gameState } = showdownData;
-  const activePlayers = handEvaluations.map(he => he.player);
+  const activePlayers = handEvaluations?.map(he => he.player) || [];
+
+  // Debug log the showdown data
+  console.log('ShowdownSequence render:', {
+    handEvaluations: handEvaluations?.length || 0,
+    winners: winners?.length || 0,
+    activePlayers: activePlayers.length,
+    gameState: gameState?.handNumber
+  });
 
   const themeClasses = darkMode ? {
     overlay: 'bg-black/80',
@@ -90,7 +98,10 @@ const ShowdownSequence = ({ showdownData, darkMode = false, onComplete }) => {
     return () => clearTimeout(timer);
   }, [currentPhase, currentPlayerIndex, activePlayers.length, showdownData, onComplete]);
 
-  if (!showdownData || activePlayers.length === 0) return null;
+  if (!showdownData || !handEvaluations || handEvaluations.length === 0) {
+    console.log('ShowdownSequence early return:', { showdownData: !!showdownData, handEvaluations: handEvaluations?.length });
+    return null;
+  }
 
   return (
     <div className={`fixed inset-0 ${themeClasses.overlay} flex items-center justify-center z-50 backdrop-blur-sm`}>

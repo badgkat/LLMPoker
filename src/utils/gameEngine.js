@@ -733,13 +733,53 @@ export class GameEngine {
    * @returns {GameState} Updated game state
    */
   showdown(gameState) {
+    // Players eligible for showdown are those who made it to the end without folding
+    // They should have cards to show (holeCards) and have invested money in the pot
+    const showdownPlayers = gameState.players.filter(p => 
+      p.holeCards && p.holeCards.length === 2 && 
+      (p.isActive || p.currentBet > 0 || p.isAllIn)
+    );
+    
+    // For the actual hand evaluation, use players who are still "active" (didn't fold)
     const activePlayers = gameState.players.filter(p => p.isActive);
     const sidePots = calculateSidePots(gameState.players, gameState.pot);
     
+    console.log('Showdown called:', {
+      totalPlayers: gameState.players.length,
+      activePlayers: activePlayers.length,
+      showdownPlayers: showdownPlayers.length,
+      activePlayerNames: activePlayers.map(p => p.name),
+      showdownPlayerNames: showdownPlayers.map(p => p.name),
+      playerStates: gameState.players.map(p => ({
+        name: p.name,
+        isActive: p.isActive,
+        currentBet: p.currentBet,
+        chips: p.chips,
+        hasCards: p.holeCards?.length === 2
+      }))
+    });
+    
     this.emit('showdownStarted', { activePlayers, sidePots });
     
-    if (activePlayers.length === 1) {
-      return this.endHandEarly(gameState, activePlayers[0]);
+    // Check if we actually need a showdown or if hand should end early
+    // Only end early if there's truly just one player who didn't fold
+    const playersWhoDidntFold = gameState.players.filter(p => 
+      p.holeCards && p.holeCards.length === 2 && p.isActive
+    );
+    
+    if (playersWhoDidntFold.length === 1) {
+      console.log('Only one player didn\'t fold, ending early');
+      return this.endHandEarly(gameState, playersWhoDidntFold[0]);
+    }
+    
+    // If we have multiple players who didn't fold, proceed with showdown
+    if (playersWhoDidntFold.length < 2) {
+      console.error('Showdown called with less than 2 players who didn\'t fold:', playersWhoDidntFold);
+      // This shouldn't happen, but if it does, find the last remaining player
+      const remainingPlayer = gameState.players.find(p => p.chips > 0);
+      if (remainingPlayer) {
+        return this.endHandEarly(gameState, remainingPlayer);
+      }
     }
 
     // Evaluate all hands
@@ -747,6 +787,15 @@ export class GameEngine {
       player,
       evaluation: evaluateHand(player.holeCards, gameState.communityCards)
     }));
+    
+    console.log('Hand evaluations created:', {
+      count: handEvaluations.length,
+      evaluations: handEvaluations.map(he => ({
+        playerName: he.player.name,
+        strength: he.evaluation.strength,
+        description: he.evaluation.description
+      }))
+    });
     
     // Sort by hand strength (highest first)
     handEvaluations.sort((a, b) => b.evaluation.strength - a.evaluation.strength);
@@ -790,7 +839,8 @@ export class GameEngine {
       pot: 0,
       sidePots: [],
       activePlayer: -1,
-      processingPhase: true
+      processingPhase: true,
+      showingShowdown: true  // Preserve showdown flag for UI
     };
 
     this.emit('showdownComplete', { 
