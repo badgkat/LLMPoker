@@ -42,10 +42,7 @@ export class MockAIService {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
     
-    // Debug: Log the full prompt occasionally
-    if (Math.random() < 0.2) {
-      console.log('Full AI prompt received:', prompt);
-    }
+    // Removed debug logging
     
     // Extract game context from prompt
     const gameContext = this.extractGameContext(prompt);
@@ -139,22 +136,8 @@ export class MockAIService {
     const communityMatch = prompt.match(/Community cards: (.+)/);
     const communityCards = communityMatch ? this.parseCards(communityMatch[1]) : [];
     
-    // Debug logging
-    if (Math.random() < 0.3) {
-      console.log('Hand evaluation debug:', {
-        holeCardsStr,
-        holeCards,
-        communityCards,
-        promptSnippet: prompt.substring(0, 200) + '...'
-      });
-    }
-    
     // Use fallback evaluation
     const strength = this.evaluateHand(holeCards, communityCards);
-    
-    if (Math.random() < 0.3) {
-      console.log('Hand strength calculated:', strength);
-    }
     
     return strength;
   }
@@ -176,14 +159,7 @@ export class MockAIService {
         return { rank, suit };
       });
       
-    // Debug the parsing
-    if (Math.random() < 0.3) {
-      console.log('Card parsing debug:', {
-        input: cardsStr,
-        splitResult: cardsStr.split(' '),
-        finalCards: cards
-      });
-    }
+    // Removed debug logging
     
     return cards;
   }
@@ -195,66 +171,152 @@ export class MockAIService {
    * @returns {number} Hand strength estimate (0-1000)
    */
   evaluateHand(holeCards, communityCards) {
-    if (!holeCards || holeCards.length < 2) return 200;
+    if (!holeCards || holeCards.length < 2) return 50; // Much weaker default
     
     const [card1, card2] = holeCards;
     const rank1 = this.getCardRank(card1.rank);
     const rank2 = this.getCardRank(card2.rank);
     const isPair = rank1 === rank2;
     const highCard = Math.max(rank1, rank2);
+    const lowCard = Math.min(rank1, rank2);
     
-    // Simple pre-flop evaluation
+    // Simple pre-flop evaluation (much more conservative)
     if (communityCards.length === 0) {
       const isSuited = card1.suit === card2.suit;
       const isConnected = Math.abs(rank1 - rank2) <= 1;
       
       if (isPair) {
-        if (rank1 >= 14) return 950; // AA
-        if (rank1 >= 13) return 900; // KK
-        if (rank1 >= 12) return 850; // QQ
-        if (rank1 >= 11) return 800; // JJ
-        if (rank1 >= 10) return 750; // TT
-        if (rank1 >= 9) return 700; // 99
-        if (rank1 >= 7) return 600; // 77-88
-        return 500 + rank1 * 15; // Small pairs
+        if (rank1 >= 14) return 450; // AA - reduced from 950
+        if (rank1 >= 13) return 420; // KK - reduced from 900
+        if (rank1 >= 12) return 390; // QQ - reduced from 850
+        if (rank1 >= 11) return 360; // JJ - reduced from 800
+        if (rank1 >= 10) return 330; // TT - reduced from 750
+        if (rank1 >= 9) return 300; // 99 - reduced from 700
+        if (rank1 >= 7) return 250; // 77-88 - reduced from 600
+        return 180 + rank1 * 8; // Small pairs - much reduced
       } else {
-        // High card combinations
-        if (highCard >= 14 && rank2 >= 10) return 650 + (rank2 - 10) * 20; // AK, AQ, AJ, AT
-        if (highCard >= 13 && rank2 >= 10) return 550 + (rank2 - 10) * 15; // KQ, KJ, KT
-        if (highCard >= 12 && rank2 >= 10) return 450 + (rank2 - 10) * 10; // QJ, QT
-        if (isSuited && isConnected && highCard >= 8) return 400 + highCard * 10; // Suited connectors
-        if (isSuited && highCard >= 10) return 350 + highCard * 8; // Suited cards
-        if (isConnected && highCard >= 9) return 300 + highCard * 5; // Connectors
-        if (highCard >= 12) return 250 + highCard * 8; // High cards
-        return 150 + highCard * 5 + rank2 * 2; // Weak hands
+        // High card combinations (much more conservative)
+        if (highCard >= 14 && lowCard >= 13) return 380; // AK - reduced from 730
+        if (highCard >= 14 && lowCard >= 12) return 340; // AQ - reduced from 690
+        if (highCard >= 14 && lowCard >= 11) return 300; // AJ - reduced from 650
+        if (highCard >= 14 && lowCard >= 10) return 260; // AT - reduced from 610
+        if (highCard >= 13 && lowCard >= 12) return 280; // KQ - reduced from 580
+        if (highCard >= 13 && lowCard >= 11) return 240; // KJ - reduced from 565
+        if (highCard >= 13 && lowCard >= 10) return 200; // KT - reduced from 550
+        if (highCard >= 12 && lowCard >= 11) return 220; // QJ - reduced from 460
+        if (highCard >= 12 && lowCard >= 10) return 180; // QT - reduced from 450
+        
+        // Suited and connected bonuses (reduced)
+        let bonus = 0;
+        if (isSuited && isConnected && highCard >= 8) bonus += 40; // Suited connectors
+        else if (isSuited && highCard >= 10) bonus += 25; // Suited cards
+        else if (isConnected && highCard >= 9) bonus += 15; // Connectors
+        
+        // Base strength for other combinations
+        if (highCard >= 12) return 120 + bonus; // High cards
+        if (highCard >= 10) return 80 + bonus; // Medium cards
+        return 40 + highCard * 3 + lowCard + bonus; // Weak hands
       }
     }
     
-    // Post-flop evaluation
-    let strength = 300; // Base strength
-    
-    // Check for potential pairs, draws, etc.
+    // Post-flop evaluation (completely rewritten)
     const allCards = [...holeCards, ...communityCards];
     const ranks = allCards.map(card => this.getCardRank(card.rank));
     const suits = allCards.map(card => card.suit);
     
-    // Basic pair detection
+    // Count rank occurrences
     const rankCounts = {};
     ranks.forEach(rank => rankCounts[rank] = (rankCounts[rank] || 0) + 1);
     const counts = Object.values(rankCounts).sort((a, b) => b - a);
+    const sortedRanks = Object.entries(rankCounts)
+      .sort(([,a], [,b]) => b - a)
+      .map(([rank, count]) => ({ rank: parseInt(rank), count }));
     
-    if (counts[0] >= 2) strength += 200; // Pair or better
-    if (counts[0] >= 3) strength += 300; // Three of a kind or better
-    if (counts[0] >= 4) strength += 400; // Four of a kind
-    
-    // Basic flush draw detection
+    // Count suit occurrences
     const suitCounts = {};
     suits.forEach(suit => suitCounts[suit] = (suitCounts[suit] || 0) + 1);
     const maxSuitCount = Math.max(...Object.values(suitCounts));
-    if (maxSuitCount >= 4) strength += 50; // Flush draw
-    if (maxSuitCount >= 5) strength += 200; // Flush
     
-    return Math.min(900, strength);
+    // Check for straight
+    const uniqueRanks = [...new Set(ranks)].sort((a, b) => b - a);
+    const isWheel = uniqueRanks.includes(14) && uniqueRanks.includes(2) && uniqueRanks.includes(3) && uniqueRanks.includes(4) && uniqueRanks.includes(5);
+    let isStraight = false;
+    if (isWheel) {
+      isStraight = true;
+    } else {
+      for (let i = 0; i <= uniqueRanks.length - 5; i++) {
+        if (uniqueRanks[i] - uniqueRanks[i + 4] === 4) {
+          isStraight = true;
+          break;
+        }
+      }
+    }
+    
+    // Evaluate hand type and assign strength
+    let strength = 0;
+    let handType = '';
+    
+    // Check hand types from strongest to weakest
+    if (maxSuitCount >= 5 && isStraight) {
+      // Straight flush or royal flush
+      const highStraightCard = isWheel ? 5 : Math.max(...uniqueRanks.slice(0, 5));
+      if (highStraightCard === 14) {
+        strength = 900; // Royal flush
+        handType = 'Royal Flush';
+      } else {
+        strength = 800 + highStraightCard; // Straight flush
+        handType = 'Straight Flush';
+      }
+    } else if (counts[0] === 4) {
+      // Four of a kind
+      const quadRank = sortedRanks[0].rank;
+      strength = 700 + quadRank; // 714-728
+      handType = 'Four of a Kind';
+    } else if (counts[0] === 3 && counts[1] === 2) {
+      // Full house
+      const tripRank = sortedRanks[0].rank;
+      const pairRank = sortedRanks[1].rank;
+      strength = 600 + tripRank + (pairRank * 0.1); // 602-628
+      handType = 'Full House';
+    } else if (maxSuitCount >= 5) {
+      // Flush
+      const flushCards = ranks.filter((rank, index) => {
+        const suit = suits[index];
+        return suits.filter(s => s === suit).length >= 5;
+      }).sort((a, b) => b - a).slice(0, 5);
+      strength = 500 + flushCards[0] + (flushCards[1] * 0.1); // 502-528
+      handType = 'Flush';
+    } else if (isStraight) {
+      // Straight
+      const highStraightCard = isWheel ? 5 : Math.max(...uniqueRanks.slice(0, 5));
+      strength = 400 + highStraightCard; // 405-414
+      handType = 'Straight';
+    } else if (counts[0] === 3) {
+      // Three of a kind
+      const tripRank = sortedRanks[0].rank;
+      strength = 300 + tripRank; // 302-317
+      handType = 'Three of a Kind';
+    } else if (counts[0] === 2 && counts[1] === 2) {
+      // Two pair
+      const highPair = Math.max(sortedRanks[0].rank, sortedRanks[1].rank);
+      const lowPair = Math.min(sortedRanks[0].rank, sortedRanks[1].rank);
+      strength = 200 + highPair + (lowPair * 0.1); // 202-228
+      handType = 'Two Pair';
+    } else if (counts[0] === 2) {
+      // One pair
+      const pairRank = sortedRanks[0].rank;
+      strength = 100 + pairRank; // 102-117
+      handType = 'Pair';
+    } else {
+      // High card
+      const highCardRank = Math.max(...ranks);
+      const secondHigh = ranks.filter(r => r !== highCardRank).length > 0 ? 
+        Math.max(...ranks.filter(r => r !== highCardRank)) : 0;
+      strength = highCardRank + (secondHigh * 0.1); // 2-28
+      handType = 'High Card';
+    }
+    
+    return Math.round(strength);
   }
 
   /**
@@ -292,11 +354,11 @@ export class MockAIService {
     const isShortStack = stackRatio < 10;
     const shortStackMultiplier = isShortStack ? (1 + riskTolerance * 0.3) : 1;
     
-    // Dynamic thresholds based on 4D strategy (much more aggressive)
-    const foldThreshold = 100 + (tightness * 100); // 100-200 range (fold weak hands)
-    const callThreshold = 150 + (tightness * 100); // 150-250 range (call decent hands)  
-    const raiseThreshold = 200 + (tightness * 100) + (aggression * 150); // 200-450 range (raise good hands)
-    const allInThreshold = 600 + (riskTolerance * 200); // 600-800 range (all-in premium hands)
+    // Dynamic thresholds based on 4D strategy (adjusted for new hand strength scale)
+    const foldThreshold = 40 + (tightness * 40); // 40-80 range (fold weak hands)
+    const callThreshold = 60 + (tightness * 60); // 60-120 range (call decent hands)  
+    const raiseThreshold = 100 + (tightness * 80) + (aggression * 100); // 100-280 range (raise good hands)
+    const allInThreshold = 350 + (riskTolerance * 150); // 350-500 range (all-in premium hands)
     
     // Check if we're getting good pot odds (influenced by mathematical thinking)
     const potOddsThreshold = 1.8 + (tightness * 0.7); // 1.8-2.5 range (much more reasonable)
@@ -312,23 +374,9 @@ export class MockAIService {
     // Apply risk tolerance and short stack multiplier
     const finalHandStrength = adjustedHandStrength * shortStackMultiplier;
     
-    // Debug output for testing (remove in production)
-    if (Math.random() < 0.3) { // Log 30% of decisions for better debugging
-      console.log(`AI Decision Debug for ${this.strategyProfile.name}:`, {
-        handStrength: finalHandStrength,
-        foldThreshold,
-        callThreshold, 
-        raiseThreshold,
-        callAmount,
-        potSize,
-        stackSize,
-        shouldBluff,
-        shouldValueRaise,
-        aggression,
-        availableActions,
-        isBigBet: callAmount > (potSize * 0.5),
-        isAllInCall: callAmount >= (stackSize * 0.8)
-      });
+    // Keep minimal debug for hand strength verification
+    if (Math.random() < 0.1) { // Only log 10% of decisions 
+      console.log(`${this.strategyProfile.name} strength: ${finalHandStrength}, thresholds: fold=${foldThreshold}, call=${callThreshold}, raise=${raiseThreshold}`);
     }
     
     // Decision logic tree based on 4D strategy (MUCH MORE AGGRESSIVE)
@@ -372,7 +420,7 @@ export class MockAIService {
     // Much stricter requirements for big bets and all-in calls
     if (isBigBet || isAllInCall) {
       // Need a strong hand for big bets - ignore pot odds for very large bets
-      const bigBetThreshold = callThreshold + 150; // Need stronger hand for big bets
+      const bigBetThreshold = callThreshold + 80; // Need stronger hand for big bets
       if (finalHandStrength >= bigBetThreshold) {
         if (availableActions.includes('call')) {
           return { action: 'call', amount: 0, reasoning: `${this.strategyProfile.name}: Strong hand vs big bet` };
@@ -381,8 +429,8 @@ export class MockAIService {
     } else {
       // Normal bet sizing - use regular logic
       if (finalHandStrength >= callThreshold || 
-          (hasGoodPotOdds && finalHandStrength >= 150) || 
-          (hasGreatPotOdds && finalHandStrength >= 120)) {
+          (hasGoodPotOdds && finalHandStrength >= 50) || 
+          (hasGreatPotOdds && finalHandStrength >= 35)) {
         if (availableActions.includes('call')) {
           const reasoning = hasGreatPotOdds ? `${this.strategyProfile.name}: Great pot odds` : 
                            (hasGoodPotOdds ? `${this.strategyProfile.name}: Good pot odds` : 
