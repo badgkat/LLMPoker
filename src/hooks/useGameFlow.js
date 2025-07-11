@@ -174,10 +174,13 @@ export const useGameFlow = () => {
   }, [addLogEntry, setAiMemories]); // Stable dependencies
 
   /**
-   * Check for game over conditions
+   * Check for game over conditions (but not during showdown or processing)
    */
   useEffect(() => {
-    if (gameState.phase === GAME_PHASES.PLAYING && gameState.players) {
+    if (gameState.phase === GAME_PHASES.PLAYING && 
+        gameState.players && 
+        !gameState.processingPhase && 
+        !gameState.showingShowdown) {
       const activePlayers = gameState.players.filter(p => p.chips > 0);
       
       if (activePlayers.length < 2) {
@@ -307,10 +310,26 @@ export const useGameFlow = () => {
       processingPhase: false // Ensure we're not stuck in processing
     });
     
-    // Start next hand after delay
-    setTimeout(() => {
-      startNextHand(showdownData.gameState);
-    }, 3000);
+    // Check for tournament end AFTER showdown completes
+    const playersWithChips = showdownData.gameState.players.filter(p => p.chips > 0);
+    if (playersWithChips.length < 2) {
+      // Tournament is over, don't start next hand
+      setTimeout(() => {
+        setGameState({ 
+          ...showdownData.gameState, 
+          phase: GAME_PHASES.GAME_OVER 
+        });
+        
+        if (playersWithChips.length === 1) {
+          gameEngine.emit('gameOver', { winner: playersWithChips[0] });
+        }
+      }, 1000);
+    } else {
+      // Continue with next hand
+      setTimeout(() => {
+        startNextHand(showdownData.gameState);
+      }, 3000);
+    }
   }, [createHandSummary, setHandSummary, setShowdownData, setGameState, startNextHand]);
 
   /**

@@ -42,6 +42,11 @@ export class MockAIService {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
     
+    // Debug: Log the full prompt occasionally
+    if (Math.random() < 0.2) {
+      console.log('Full AI prompt received:', prompt);
+    }
+    
     // Extract game context from prompt
     const gameContext = this.extractGameContext(prompt);
     
@@ -122,7 +127,10 @@ export class MockAIService {
   evaluateHandFromPrompt(prompt) {
     // Extract hole cards
     const holeCardsMatch = prompt.match(/Your hole cards: (.+)/);
-    if (!holeCardsMatch) return 200; // Default weak hand
+    if (!holeCardsMatch) {
+      console.log('No hole cards found in prompt');
+      return 200; // Default weak hand
+    }
     
     const holeCardsStr = holeCardsMatch[1];
     const holeCards = this.parseCards(holeCardsStr);
@@ -131,8 +139,24 @@ export class MockAIService {
     const communityMatch = prompt.match(/Community cards: (.+)/);
     const communityCards = communityMatch ? this.parseCards(communityMatch[1]) : [];
     
+    // Debug logging
+    if (Math.random() < 0.3) {
+      console.log('Hand evaluation debug:', {
+        holeCardsStr,
+        holeCards,
+        communityCards,
+        promptSnippet: prompt.substring(0, 200) + '...'
+      });
+    }
+    
     // Use fallback evaluation
-    return this.evaluateHand(holeCards, communityCards);
+    const strength = this.evaluateHand(holeCards, communityCards);
+    
+    if (Math.random() < 0.3) {
+      console.log('Hand strength calculated:', strength);
+    }
+    
+    return strength;
   }
 
   /**
@@ -143,7 +167,7 @@ export class MockAIService {
   parseCards(cardsStr) {
     if (!cardsStr || cardsStr.trim() === '') return [];
     
-    return cardsStr.split(', ')
+    const cards = cardsStr.split(' ')  // Changed from ', ' to ' ' since cards are space-separated
       .map(cardStr => cardStr.trim())
       .filter(cardStr => cardStr.length >= 2)
       .map(cardStr => {
@@ -151,6 +175,17 @@ export class MockAIService {
         const suit = cardStr.slice(-1);
         return { rank, suit };
       });
+      
+    // Debug the parsing
+    if (Math.random() < 0.3) {
+      console.log('Card parsing debug:', {
+        input: cardsStr,
+        splitResult: cardsStr.split(' '),
+        finalCards: cards
+      });
+    }
+    
+    return cards;
   }
 
   /**
@@ -257,65 +292,112 @@ export class MockAIService {
     const isShortStack = stackRatio < 10;
     const shortStackMultiplier = isShortStack ? (1 + riskTolerance * 0.3) : 1;
     
-    // Dynamic thresholds based on 4D strategy (more reasonable values)
-    const foldThreshold = 150 + (tightness * 100); // 150-250 range
-    const callThreshold = 200 + (tightness * 150); // 200-350 range  
-    const raiseThreshold = 400 - (tightness * 100) + (aggression * 200); // 300-600 range
-    const allInThreshold = 700 - (tightness * 200) + (riskTolerance * 200); // 500-900 range
+    // Dynamic thresholds based on 4D strategy (much more aggressive)
+    const foldThreshold = 100 + (tightness * 100); // 100-200 range (fold weak hands)
+    const callThreshold = 150 + (tightness * 100); // 150-250 range (call decent hands)  
+    const raiseThreshold = 200 + (tightness * 100) + (aggression * 150); // 200-450 range (raise good hands)
+    const allInThreshold = 600 + (riskTolerance * 200); // 600-800 range (all-in premium hands)
     
     // Check if we're getting good pot odds (influenced by mathematical thinking)
-    const mathWeight = 1 - (adaptability * 0.3); // Less adaptable = more math-focused
     const potOddsThreshold = 1.8 + (tightness * 0.7); // 1.8-2.5 range (much more reasonable)
     const hasGoodPotOdds = potOdds >= potOddsThreshold;
     const hasGreatPotOdds = potOdds >= potOddsThreshold * 1.3;
     
-    // Bluffing and semi-bluffing logic based on 4D strategy (increased frequency)
-    const positionBluffBonus = position === 'Button' ? adaptability * 0.2 : 0;
-    const shouldBluff = Math.random() < (thresholds.BLUFF_FREQUENCY * 2 + positionBluffBonus) && round !== 'preflop';
-    const shouldSemiBluff = Math.random() < (aggression * 0.25) && adjustedHandStrength >= 150 && round === 'flop';
+    // Bluffing and semi-bluffing logic based on 4D strategy (much more aggressive)
+    const positionBluffBonus = position === 'Button' ? adaptability * 0.3 : 0;
+    const shouldBluff = Math.random() < (thresholds.BLUFF_FREQUENCY * 4 + positionBluffBonus) && round !== 'preflop';
+    const shouldSemiBluff = Math.random() < (aggression * 0.4) && adjustedHandStrength >= 120 && round === 'flop';
+    const shouldValueRaise = Math.random() < (aggression * 0.6) && adjustedHandStrength >= raiseThreshold * 0.8;
     
     // Apply risk tolerance and short stack multiplier
     const finalHandStrength = adjustedHandStrength * shortStackMultiplier;
     
-    // Decision logic tree based on 4D strategy
-    if (finalHandStrength >= allInThreshold || (isShortStack && finalHandStrength >= raiseThreshold && riskTolerance > 0.6)) {
-      // Very strong hand or short stack with good hand (risk tolerance affects short stack play)
+    // Debug output for testing (remove in production)
+    if (Math.random() < 0.3) { // Log 30% of decisions for better debugging
+      console.log(`AI Decision Debug for ${this.strategyProfile.name}:`, {
+        handStrength: finalHandStrength,
+        foldThreshold,
+        callThreshold, 
+        raiseThreshold,
+        callAmount,
+        potSize,
+        stackSize,
+        shouldBluff,
+        shouldValueRaise,
+        aggression,
+        availableActions,
+        isBigBet: callAmount > (potSize * 0.5),
+        isAllInCall: callAmount >= (stackSize * 0.8)
+      });
+    }
+    
+    // Decision logic tree based on 4D strategy (MUCH MORE AGGRESSIVE)
+    
+    // All-in with premium hands
+    if (finalHandStrength >= allInThreshold) {
       if (availableActions.includes('all-in')) {
-        return { action: 'all-in', amount: 0, reasoning: `${this.strategyProfile.name}: Very strong hand - all-in` };
+        return { action: 'all-in', amount: 0, reasoning: `${this.strategyProfile.name}: Premium hand - all-in` };
       } else if (availableActions.includes('raise')) {
         const raiseAmount = this.calculateRaiseAmount(context, 'aggressive');
-        return { action: 'raise', amount: raiseAmount, reasoning: `${this.strategyProfile.name}: Strong hand - aggressive raise` };
-      } else if (availableActions.includes('call')) {
-        return { action: 'call', amount: 0, reasoning: `${this.strategyProfile.name}: Strong hand - call` };
+        return { action: 'raise', amount: raiseAmount, reasoning: `${this.strategyProfile.name}: Premium hand - big raise` };
       }
-    } else if (finalHandStrength >= raiseThreshold || shouldBluff || shouldSemiBluff) {
-      // Strong hand, bluff, or semi-bluff (frequency based on aggression)
+    }
+    
+    // Raise with good hands OR when bluffing/value raising
+    if (finalHandStrength >= raiseThreshold || shouldBluff || shouldSemiBluff || shouldValueRaise) {
       if (availableActions.includes('raise')) {
-        const strategy = shouldBluff ? 'bluff' : (shouldSemiBluff ? 'aggressive' : 'value');
+        let strategy = 'value';
+        let reasoning = `${this.strategyProfile.name}: Good hand - value raise`;
+        
+        if (shouldBluff) {
+          strategy = 'bluff';
+          reasoning = `${this.strategyProfile.name}: Bluffing`;
+        } else if (shouldSemiBluff) {
+          strategy = 'aggressive';
+          reasoning = `${this.strategyProfile.name}: Semi-bluff`;
+        } else if (shouldValueRaise) {
+          strategy = 'aggressive';
+          reasoning = `${this.strategyProfile.name}: Aggressive value raise`;
+        }
+        
         const raiseAmount = this.calculateRaiseAmount(context, strategy);
-        const reasoning = shouldBluff ? `${this.strategyProfile.name}: Position bluff` : 
-                         (shouldSemiBluff ? `${this.strategyProfile.name}: Semi-bluff with draws` : 
-                          `${this.strategyProfile.name}: Strong hand - value raise`);
         return { action: 'raise', amount: raiseAmount, reasoning };
-      } else if (availableActions.includes('call')) {
-        return { action: 'call', amount: 0, reasoning: `${this.strategyProfile.name}: Strong hand - call` };
       }
-    } else if (finalHandStrength >= callThreshold || 
-               (hasGoodPotOdds && finalHandStrength >= 150) || 
-               hasGreatPotOdds) {
-      // Decent hand, good pot odds, or great pot odds (tightness affects threshold)
-      if (availableActions.includes('call')) {
-        const reasoning = hasGreatPotOdds ? `${this.strategyProfile.name}: Great pot odds - call` : 
-                         (hasGoodPotOdds ? `${this.strategyProfile.name}: Good pot odds - call` : 
-                          `${this.strategyProfile.name}: Decent hand - call`);
-        return { action: 'call', amount: 0, reasoning };
-      } else if (availableActions.includes('check')) {
-        return { action: 'check', amount: 0, reasoning: `${this.strategyProfile.name}: Decent hand - check` };
+    }
+    
+    // Call with decent hands or good pot odds (but be more careful with big bets)
+    const isBigBet = callAmount > (potSize * 0.5); // Calling more than half pot is a big bet
+    const isAllInCall = callAmount >= (stackSize * 0.8); // Calling 80%+ of stack
+    
+    // Much stricter requirements for big bets and all-in calls
+    if (isBigBet || isAllInCall) {
+      // Need a strong hand for big bets - ignore pot odds for very large bets
+      const bigBetThreshold = callThreshold + 150; // Need stronger hand for big bets
+      if (finalHandStrength >= bigBetThreshold) {
+        if (availableActions.includes('call')) {
+          return { action: 'call', amount: 0, reasoning: `${this.strategyProfile.name}: Strong hand vs big bet` };
+        }
       }
-    } else if (finalHandStrength >= foldThreshold && callAmount === 0) {
-      // Weak hand but free to see more cards (tightness affects willingness to see free cards)
-      if (availableActions.includes('check') && tightness < 0.8) {
-        return { action: 'check', amount: 0, reasoning: `${this.strategyProfile.name}: Weak hand - check for free card` };
+    } else {
+      // Normal bet sizing - use regular logic
+      if (finalHandStrength >= callThreshold || 
+          (hasGoodPotOdds && finalHandStrength >= 150) || 
+          (hasGreatPotOdds && finalHandStrength >= 120)) {
+        if (availableActions.includes('call')) {
+          const reasoning = hasGreatPotOdds ? `${this.strategyProfile.name}: Great pot odds` : 
+                           (hasGoodPotOdds ? `${this.strategyProfile.name}: Good pot odds` : 
+                            `${this.strategyProfile.name}: Decent hand`);
+          return { action: 'call', amount: 0, reasoning };
+        } else if (availableActions.includes('check')) {
+          return { action: 'check', amount: 0, reasoning: `${this.strategyProfile.name}: Decent hand - check` };
+        }
+      }
+    }
+    
+    // Check with weak hands if it's free
+    if (callAmount === 0 && finalHandStrength >= foldThreshold) {
+      if (availableActions.includes('check')) {
+        return { action: 'check', amount: 0, reasoning: `${this.strategyProfile.name}: Free card` };
       }
     }
     
@@ -354,7 +436,7 @@ export class MockAIService {
    * @returns {number} Raise amount
    */
   calculateRaiseAmount(context, strategy = 'value') {
-    const { potSize, minRaise, playerChips, callAmount } = context;
+    const { potSize, minRaise, stackSize, callAmount } = context;
     const currentGameBet = callAmount;
     const { aggression, riskTolerance } = this.strategyProfile;
     const { BETTING_SIZE_MULTIPLIER } = this.behaviorThresholds;
@@ -381,7 +463,7 @@ export class MockAIService {
     
     const targetTotalBet = currentGameBet + Math.floor(potSize * finalMultiplier);
     const minTotalBet = currentGameBet + Math.max(minRaise, 200);
-    const maxTotalBet = Math.min(playerChips, currentGameBet + Math.floor(potSize * 1.5));
+    const maxTotalBet = Math.min(stackSize, currentGameBet + Math.floor(potSize * 1.5));
     
     // Ensure raise is within valid bounds (return total bet amount, not just the raise)
     const totalBetAmount = Math.max(minTotalBet, Math.min(targetTotalBet, maxTotalBet));
