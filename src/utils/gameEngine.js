@@ -13,6 +13,13 @@ import {
   PLAYER_ACTIONS 
 } from '../constants/gameConstants.js';
 import { AI_STRATEGIES, AI_PERSONALITY_PROFILES } from '../constants/aiConstants.js';
+import { 
+  getBlindLevel, 
+  getMinBettingIncrement, 
+  roundToChipIncrement,
+  validateChipAmount,
+  getChipRaceOffInfo 
+} from '../constants/tournamentConstants.js';
 
 /**
  * @typedef {import('../store/types.js').GameState} GameState
@@ -150,6 +157,10 @@ export class GameEngine {
     // Randomly assign dealer button
     const dealerButton = Math.floor(Math.random() * 9);
 
+    // Get tournament level configuration (start at level 1)
+    const tournamentLevel = 1;
+    const blindLevel = getBlindLevel(tournamentLevel);
+    
     const gameState = {
       phase: GAME_PHASES.PLAYING,
       players,
@@ -160,9 +171,13 @@ export class GameEngine {
       sidePots: [],
       currentBet: 0,
       lastRaiseSize: 0,
+      lastIncompleteRaise: null, // Track incomplete raises for WSOP compliance
       dealerButton,
-      smallBlind: DEFAULT_SETTINGS.SMALL_BLIND,
-      bigBlind: DEFAULT_SETTINGS.BIG_BLIND,
+      tournamentLevel, // WSOP tournament level
+      smallBlind: blindLevel?.smallBlind || DEFAULT_SETTINGS.SMALL_BLIND,
+      bigBlind: blindLevel?.bigBlind || DEFAULT_SETTINGS.BIG_BLIND,
+      ante: blindLevel?.ante || 0,
+      minBettingIncrement: blindLevel?.minBettingIncrement || 25,
       activePlayer: 0,
       handNumber: 1,
       bettingRound: BETTING_ROUNDS.PREFLOP,
@@ -235,6 +250,7 @@ export class GameEngine {
       sidePots: [],
       currentBet: gameState.bigBlind,
       lastRaiseSize: gameState.bigBlind,
+      lastIncompleteRaise: null, // Reset incomplete raise tracking for new hand
       activePlayer: firstToAct,
       bettingRound: BETTING_ROUNDS.PREFLOP,
       lastAction: null,
@@ -409,26 +425,41 @@ export class GameEngine {
     const minRaiseSize = Math.max(gameState.lastRaiseSize, gameState.bigBlind);
     const minTotalBet = gameState.currentBet + minRaiseSize;
     const maxPossibleBet = player.currentBet + player.chips;
-    const totalBetSize = Math.min(Math.max(amount || minTotalBet, minTotalBet), maxPossibleBet);
+    
+    // WSOP Rule: Round to valid chip increment
+    let targetBetSize = amount || minTotalBet;
+    targetBetSize = roundToChipIncrement(Math.max(targetBetSize, minTotalBet), gameState.tournamentLevel);
+    
+    const totalBetSize = Math.min(targetBetSize, maxPossibleBet);
     const additionalAmount = totalBetSize - player.currentBet;
     const actualRaiseSize = totalBetSize - gameState.currentBet;
 
     let description = '';
     let isAllIn = false;
     let newLastRaiseSize = gameState.lastRaiseSize;
+    let isIncompleteRaise = false;
 
     if (additionalAmount > 0 && additionalAmount <= player.chips) {
       const newChips = player.chips - additionalAmount;
       
       if (newChips === 0) {
         isAllIn = true;
+        // WSOP Rule: Incomplete raise handling
         if (actualRaiseSize >= minRaiseSize) {
           newLastRaiseSize = actualRaiseSize;
           description = `${player.name} goes all-in, raising to ${totalBetSize}`;
         } else {
+          isIncompleteRaise = true;
           description = `${player.name} goes all-in for ${totalBetSize} (incomplete raise)`;
+          // Mark this as incomplete raise for future action restrictions
+          gameState.lastIncompleteRaise = {
+            playerId: player.id,
+            amount: actualRaiseSize,
+            totalBet: totalBetSize
+          };
         }
       } else {
+        // Full raise
         newLastRaiseSize = actualRaiseSize;
         description = `${player.name} raises to ${totalBetSize}`;
       }
@@ -440,6 +471,7 @@ export class GameEngine {
         potIncrease: additionalAmount,
         newCurrentBet: totalBetSize,
         newLastRaiseSize,
+        isIncompleteRaise,
         description
       };
     } else {
@@ -453,6 +485,7 @@ export class GameEngine {
           potIncrease: 0,
           newCurrentBet: gameState.currentBet,
           newLastRaiseSize: gameState.lastRaiseSize,
+          isIncompleteRaise: false,
           description
         };
       } else {
@@ -463,6 +496,7 @@ export class GameEngine {
           potIncrease: 0,
           newCurrentBet: gameState.currentBet,
           newLastRaiseSize: gameState.lastRaiseSize,
+          isIncompleteRaise: false,
           description: `${player.name} folds`
         };
       }
@@ -708,6 +742,7 @@ export class GameEngine {
       bettingRound: nextPhase,
       currentBet: 0,
       lastRaiseSize: gameState.bigBlind,
+      lastIncompleteRaise: null, // Reset incomplete raise tracking for new betting round
       players: newPlayers,
       activePlayer: firstToActPlayer,
       processingPhase: false,
@@ -876,6 +911,45 @@ export class GameEngine {
    */
   getNextPlayer(gameState) {
     return getNextActivePlayer(gameState.players, gameState.activePlayer);
+  }
+
+  /**
+   * Advance tournament level (for future implementation)
+   * @param {GameState} gameState - Current game state
+   * @returns {GameState} Updated game state with new level
+   */
+  advanceTournamentLevel(gameState) {
+    const newLevel = gameState.tournamentLevel + 1;
+    const blindLevel = getBlindLevel(newLevel);
+    
+    if (!blindLevel) {
+      // No more levels defined, keep current level
+      return gameState;
+    }
+    
+    // Check for chip race-off
+    const raceOffInfo = getChipRaceOffInfo(newLevel);
+    if (raceOffInfo) {
+      this.emit('chipRaceOff', raceOffInfo);
+    }
+    
+    const updatedState = {
+      ...gameState,
+      tournamentLevel: newLevel,
+      smallBlind: blindLevel.smallBlind,
+      bigBlind: blindLevel.bigBlind,
+      ante: blindLevel.ante,
+      minBettingIncrement: blindLevel.minBettingIncrement
+    };
+    
+    this.emit('tournamentLevelAdvanced', {
+      previousLevel: gameState.tournamentLevel,
+      newLevel,
+      blindLevel,
+      raceOffInfo
+    });
+    
+    return updatedState;
   }
 
   /**

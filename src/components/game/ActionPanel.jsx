@@ -2,6 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { usePlayerActions } from '../../hooks/usePlayerActions.js';
 import { useGameState, useBetAmount, useGameStore } from '../../store/gameStore.js';
 import { PLAYER_ACTIONS } from '../../constants/gameConstants.js';
+import { 
+  roundToChipIncrement, 
+  getMinBettingIncrement, 
+  getBlindLevel,
+  getTournamentPhase,
+  getActiveChipDenominations,
+  CHIP_DENOMINATIONS 
+} from '../../constants/tournamentConstants.js';
 
 /**
  * ActionPanel component for player actions and betting controls
@@ -27,11 +35,17 @@ const ActionPanel = ({ darkMode = false }) => {
 
   const [localBetAmount, setLocalBetAmount] = useState(betAmount);
   const [actionInProgress, setActionInProgress] = useState(false);
+  const [actionCommitted, setActionCommitted] = useState(false); // String betting prevention
 
   // Update local bet amount when store changes
   useEffect(() => {
     setLocalBetAmount(betAmount);
   }, [betAmount]);
+
+  // Reset action commitment when active player changes (WSOP anti-string betting)
+  useEffect(() => {
+    setActionCommitted(false);
+  }, [gameState.activePlayer, gameState.handNumber]);
 
   // Auto-adjust bet amount to valid range
   useEffect(() => {
@@ -52,21 +66,35 @@ const ActionPanel = ({ darkMode = false }) => {
   const handleAction = useCallback(async (action, amount = 0) => {
     if (actionInProgress || isProcessing) return;
     
+    // WSOP String Betting Prevention
+    if (!actionCommitted && (action === PLAYER_ACTIONS.RAISE || action === PLAYER_ACTIONS.ALL_IN)) {
+      setActionCommitted(true);
+      return; // First click commits the action, don't execute yet
+    }
+    
     setActionInProgress(true);
     try {
       await executePlayerAction(action, amount);
+      setActionCommitted(false); // Reset after successful action
     } catch (error) {
       console.error('Action failed:', error);
+      setActionCommitted(false); // Reset on error
     } finally {
       setActionInProgress(false);
     }
-  }, [executePlayerAction, actionInProgress, isProcessing]);
+  }, [executePlayerAction, actionInProgress, isProcessing, actionCommitted]);
 
   const handleBetAmountChange = useCallback((value) => {
-    const newAmount = parseInt(value);
-    setLocalBetAmount(newAmount);
-    setBetAmount(newAmount);
-  }, [setBetAmount]);
+    // WSOP String Betting Prevention - cannot change bet after commitment
+    if (actionCommitted) return;
+    
+    const rawAmount = parseInt(value);
+    // WSOP Rule: Round to valid chip increment
+    const roundedAmount = roundToChipIncrement(rawAmount, gameState.tournamentLevel);
+    
+    setLocalBetAmount(roundedAmount);
+    setBetAmount(roundedAmount);
+  }, [setBetAmount, actionCommitted, gameState.tournamentLevel]);
 
   const getActionButtonStyle = useCallback((action) => {
     const baseStyle = "px-3 py-2 rounded-lg font-bold text-sm transition-all duration-200 transform hover:scale-105 shadow-lg";
@@ -91,9 +119,19 @@ const ActionPanel = ({ darkMode = false }) => {
         const isFirstRaise = gameState.currentBet === gameState.bigBlind;
         const shouldShowBet = isPreflop && isFirstRaise;
         
+        const label = shouldShowBet ? 'BET' : 'RAISE';
+        if (actionCommitted && (action === PLAYER_ACTIONS.RAISE || action === PLAYER_ACTIONS.ALL_IN)) {
+          return (
+            <div className="text-center">
+              <div>CONFIRM {label}</div>
+              <div className="text-xs">({localBetAmount.toLocaleString()})</div>
+            </div>
+          );
+        }
+        
         return (
           <div className="text-center">
-            <div>{shouldShowBet ? 'BET' : 'RAISE'}</div>
+            <div>{label}</div>
             <div className="text-xs">({localBetAmount.toLocaleString()})</div>
           </div>
         );
@@ -106,6 +144,14 @@ const ActionPanel = ({ darkMode = false }) => {
           </div>
         );
       case PLAYER_ACTIONS.ALL_IN:
+        if (actionCommitted && (action === PLAYER_ACTIONS.RAISE || action === PLAYER_ACTIONS.ALL_IN)) {
+          return (
+            <div className="text-center">
+              <div>CONFIRM ALL-IN</div>
+              <div className="text-xs">({currentPlayer?.chips.toLocaleString() || 0})</div>
+            </div>
+          );
+        }
         return (
           <div className="text-center">
             <div>ALL-IN</div>
@@ -115,7 +161,7 @@ const ActionPanel = ({ darkMode = false }) => {
       default:
         return action.toUpperCase();
     }
-  }, [localBetAmount, getCallAmount, currentPlayer, gameState.bettingRound, gameState.currentBet, gameState.bigBlind]);
+  }, [localBetAmount, getCallAmount, currentPlayer, gameState.bettingRound, gameState.currentBet, gameState.bigBlind, actionCommitted]);
 
   const themeClasses = darkMode ? {
     card: 'bg-gray-800 border-gray-700',
@@ -193,22 +239,39 @@ const ActionPanel = ({ darkMode = false }) => {
         🎯 Your Turn
       </h3>
       
-      {/* Bet Amount Slider */}
+      {/* Bet Amount Controls */}
       {isActionAvailable(PLAYER_ACTIONS.RAISE) && (
         <div className="mb-2 flex-shrink-0">
           <label className={`block text-sm font-medium mb-1 ${themeClasses.subText}`}>
             Raise Amount: {localBetAmount.toLocaleString()}
           </label>
+          
+          {/* Slider for quick adjustment */}
           <input
             type="range"
             min={getMinRaiseAmount()}
             max={getMaxRaiseAmount()}
             value={localBetAmount}
-            step={Math.max(gameState.lastRaiseSize, gameState.bigBlind)}
+            step={getMinBettingIncrement(gameState.tournamentLevel)}
             onChange={(e) => handleBetAmountChange(e.target.value)}
             className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer"
-            disabled={actionInProgress || isProcessing}
+            disabled={actionInProgress || isProcessing || actionCommitted}
           />
+          
+          {/* Precise input field */}
+          <div className="flex items-center gap-2 mt-1">
+            <input
+              type="number"
+              min={getMinRaiseAmount()}
+              max={getMaxRaiseAmount()}
+              value={localBetAmount}
+              onChange={(e) => handleBetAmountChange(e.target.value)}
+              className={`flex-1 px-2 py-1 text-sm border rounded ${themeClasses.input}`}
+              disabled={actionInProgress || isProcessing || actionCommitted}
+              placeholder="Enter amount..."
+            />
+          </div>
+          
           <div className={`flex justify-between text-xs mt-1 ${themeClasses.subText}`}>
             <span>Min: {getMinRaiseAmount().toLocaleString()}</span>
             <span>Max: {getMaxRaiseAmount().toLocaleString()}</span>
@@ -229,7 +292,7 @@ const ActionPanel = ({ darkMode = false }) => {
                 key={label}
                 onClick={() => handleBetAmountChange(amount)}
                 className={`px-2 py-1 text-xs rounded ${darkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'} transition-colors`}
-                disabled={actionInProgress || isProcessing}
+                disabled={actionInProgress || isProcessing || actionCommitted}
               >
                 {label}
               </button>
@@ -245,6 +308,18 @@ const ActionPanel = ({ darkMode = false }) => {
           <div>To Call: {getCallAmount().toLocaleString()}</div>
           <div>Your Chips: {currentPlayer.chips.toLocaleString()}</div>
           <div>Current Bet: {gameState.currentBet.toLocaleString()}</div>
+        </div>
+        
+        {/* Tournament Info */}
+        <div className="mt-1 pt-1 border-t border-gray-300">
+          <div className="flex justify-between items-center">
+            <span>Level {gameState.tournamentLevel} • {getTournamentPhase(gameState.tournamentLevel)}</span>
+            <span>Min Bet: {getMinBettingIncrement(gameState.tournamentLevel)}</span>
+          </div>
+          <div className="flex justify-between items-center mt-1">
+            <span>Blinds: {gameState.smallBlind}/{gameState.bigBlind}</span>
+            {gameState.ante > 0 && <span>Ante: {gameState.ante}</span>}
+          </div>
         </div>
       </div>
       
@@ -270,6 +345,11 @@ const ActionPanel = ({ darkMode = false }) => {
         </div>
 
         {/* Action Status */}
+        {actionCommitted && !actionInProgress && (
+          <div className={`text-center text-xs text-yellow-600 font-medium mt-1`}>
+            ⚠️ Action committed - Click again to confirm (WSOP rule)
+          </div>
+        )}
         {(actionInProgress || isProcessing) && (
           <div className={`text-center text-xs ${themeClasses.subText}`}>
             Processing action...

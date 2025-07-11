@@ -124,7 +124,8 @@ export class AIEngine {
       player, 
       gameState.currentBet, 
       gameState.lastRaiseSize, 
-      gameState.bigBlind
+      gameState.bigBlind,
+      gameState
     );
 
     const prompt = this.buildLLMPrompt(
@@ -222,6 +223,7 @@ Current game situation:
 - Betting round: ${gameState.bettingRound}
 - Hand number: ${gameState.handNumber}
 - Your position: ${this.getPositionDescription(player, gameState)}
+- Tournament Level: ${gameState.tournamentLevel}
 
 Recent opponent actions this hand:
 ${gameContext.recentActions.map(a => `${a.playerName}: ${a.action} ${a.amount || ''}`).join('\n')}
@@ -263,7 +265,8 @@ Your entire response must be valid JSON only.`;
       player, 
       gameState.currentBet, 
       gameState.lastRaiseSize, 
-      gameState.bigBlind
+      gameState.bigBlind,
+      gameState
     );
     
     const callAmount = gameState.currentBet - player.currentBet;
@@ -463,7 +466,8 @@ Your entire response must be valid JSON only.`;
       player, 
       gameState.currentBet, 
       gameState.lastRaiseSize, 
-      gameState.bigBlind
+      gameState.bigBlind,
+      gameState
     );
     
     if (availableActions.includes('check')) {

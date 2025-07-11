@@ -530,19 +530,19 @@ export const getFirstToActPostFlop = (players, dealerButton) => {
 };
 
 /**
- * Get available actions for a player
+ * Get available actions for a player (WSOP compliant)
  * @param {Player} player - Player to check
  * @param {number} currentBet - Current bet amount
  * @param {number} lastRaiseSize - Last raise size
  * @param {number} bigBlind - Big blind amount
+ * @param {Object} gameState - Full game state for incomplete raise checking
  * @returns {string[]} Array of available actions
  */
-export const getAvailableActions = (player, currentBet, lastRaiseSize, bigBlind) => {
+export const getAvailableActions = (player, currentBet, lastRaiseSize, bigBlind, gameState = null) => {
   if (!player || !player.isActive || player.isAllIn) return [];
   
   const actions = [];
   const callAmount = currentBet - player.currentBet;
-  
   
   // Check or Call
   if (callAmount === 0) {
@@ -556,17 +556,26 @@ export const getAvailableActions = (player, currentBet, lastRaiseSize, bigBlind)
     actions.push(PLAYER_ACTIONS.FOLD);
   }
   
-  // Raise logic
-  const minRaiseSize = Math.max(lastRaiseSize, bigBlind);
-  const minRaiseTotal = currentBet + minRaiseSize;
-  const additionalForFullRaise = minRaiseTotal - player.currentBet;
-  
-  // Can raise if player has enough chips for a full minimum raise
-  if (player.chips >= additionalForFullRaise) {
-    actions.push(PLAYER_ACTIONS.RAISE);
+  // WSOP Rule: Check for incomplete raise restrictions
+  let canRaise = true;
+  if (gameState?.lastIncompleteRaise && player.hasActed) {
+    // If an incomplete raise occurred and this player already acted, they cannot re-raise
+    canRaise = false;
   }
   
-  // All-in (if player has chips)
+  // Raise logic (only if WSOP rules allow)
+  if (canRaise) {
+    const minRaiseSize = Math.max(lastRaiseSize, bigBlind);
+    const minRaiseTotal = currentBet + minRaiseSize;
+    const additionalForFullRaise = minRaiseTotal - player.currentBet;
+    
+    // Can raise if player has enough chips for a full minimum raise
+    if (player.chips >= additionalForFullRaise) {
+      actions.push(PLAYER_ACTIONS.RAISE);
+    }
+  }
+  
+  // All-in (if player has chips) - always allowed regardless of incomplete raise
   if (player.chips > 0) {
     actions.push(PLAYER_ACTIONS.ALL_IN);
   }
@@ -582,10 +591,11 @@ export const getAvailableActions = (player, currentBet, lastRaiseSize, bigBlind)
  * @param {number} currentBet - Current bet amount
  * @param {number} lastRaiseSize - Last raise size
  * @param {number} bigBlind - Big blind amount
+ * @param {Object} gameState - Full game state for WSOP compliance
  * @returns {boolean} True if action is valid
  */
-export const validatePlayerAction = (action, amount, player, currentBet, lastRaiseSize, bigBlind) => {
-  const availableActions = getAvailableActions(player, currentBet, lastRaiseSize, bigBlind);
+export const validatePlayerAction = (action, amount, player, currentBet, lastRaiseSize, bigBlind, gameState = null) => {
+  const availableActions = getAvailableActions(player, currentBet, lastRaiseSize, bigBlind, gameState);
   
   if (!availableActions.includes(action)) {
     return false;

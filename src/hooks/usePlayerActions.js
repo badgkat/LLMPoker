@@ -40,7 +40,8 @@ export const usePlayerActions = () => {
         currentPlayer,
         gameState.currentBet,
         gameState.lastRaiseSize,
-        gameState.bigBlind
+        gameState.bigBlind,
+        gameState
       );
 
       if (!isValid) {
@@ -48,7 +49,8 @@ export const usePlayerActions = () => {
           currentPlayer,
           gameState.currentBet,
           gameState.lastRaiseSize,
-          gameState.bigBlind
+          gameState.bigBlind,
+          gameState
         );
         console.error(`Invalid action attempted:`, {
           action,
@@ -74,7 +76,8 @@ export const usePlayerActions = () => {
           currentPlayer,
           gameState.currentBet,
           gameState.lastRaiseSize,
-          gameState.bigBlind
+          gameState.bigBlind,
+          gameState
         ),
         validAction: isValid
       });
@@ -129,7 +132,8 @@ export const usePlayerActions = () => {
         player,
         gameState.currentBet,
         gameState.lastRaiseSize,
-        gameState.bigBlind
+        gameState.bigBlind,
+        gameState
       );
       
       if (!availableActions.includes(decision.action)) {
@@ -348,7 +352,8 @@ export const usePlayerActions = () => {
       currentPlayer,
       gameState.currentBet,
       gameState.lastRaiseSize,
-      gameState.bigBlind
+      gameState.bigBlind,
+      gameState
     );
     
     const isAvailable = availableActions.includes(action);

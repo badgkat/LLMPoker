@@ -8,6 +8,7 @@ import {
   AI_PERSONALITY_PROFILES, 
   calculate4DBehaviorThresholds
 } from '../constants/aiConstants.js';
+import { roundToChipIncrement } from '../constants/tournamentConstants.js';
 
 /**
  * @typedef {Object} MockAIResponse
@@ -62,6 +63,10 @@ export class MockAIService {
    * @returns {Object} Game context information
    */
   extractGameContext(prompt) {
+    // Extract tournament level for chip increment calculations
+    const tournamentLevelMatch = prompt.match(/Tournament Level: (\d+)/);
+    const tournamentLevel = tournamentLevelMatch ? parseInt(tournamentLevelMatch[1]) : 1;
+    
     // Extract available actions
     const availableActionsMatch = prompt.match(/Available actions: (.+)/);
     let availableActions = ['fold', 'call']; // default fallback
@@ -112,7 +117,8 @@ export class MockAIService {
       totalPlayers: totalPlayersMatch ? parseInt(totalPlayersMatch[1]) : 6,
       position: positionMatch ? positionMatch[1] : 'unknown',
       round,
-      stackSize: playerChips
+      stackSize: playerChips,
+      tournamentLevel
     };
   }
 
@@ -484,7 +490,7 @@ export class MockAIService {
    * @returns {number} Raise amount
    */
   calculateRaiseAmount(context, strategy = 'value') {
-    const { potSize, minRaise, stackSize, callAmount } = context;
+    const { potSize, minRaise, stackSize, callAmount, tournamentLevel } = context;
     const currentGameBet = callAmount;
     const { aggression, riskTolerance } = this.strategyProfile;
     const { BETTING_SIZE_MULTIPLIER } = this.behaviorThresholds;
@@ -513,8 +519,17 @@ export class MockAIService {
     const minTotalBet = currentGameBet + Math.max(minRaise, 200);
     const maxTotalBet = Math.min(stackSize, currentGameBet + Math.floor(potSize * 1.5));
     
-    // Ensure raise is within valid bounds (return total bet amount, not just the raise)
-    const totalBetAmount = Math.max(minTotalBet, Math.min(targetTotalBet, maxTotalBet));
+    // Ensure raise is within valid bounds
+    let totalBetAmount = Math.max(minTotalBet, Math.min(targetTotalBet, maxTotalBet));
+    
+    // WSOP Rule: Round to valid chip increment
+    totalBetAmount = roundToChipIncrement(totalBetAmount, tournamentLevel || 1);
+    
+    // Debug: Log chip increment validation for testing
+    if (Math.random() < 0.1) { // Only log 10% to avoid spam
+      console.log(`MockAI: Tournament level ${tournamentLevel}, rounded ${targetTotalBet} to ${totalBetAmount}`);
+    }
+    
     return totalBetAmount;
   }
 

@@ -1,6 +1,7 @@
 import { PLAYER_ACTIONS, BETTING_ROUNDS, GAME_PHASES } from '../constants/gameConstants.js';
 import { isValidCard, isCompleteDeck } from './deckUtils.js';
 import { getAvailableActions } from './pokerLogic.js';
+import { validateChipAmount, roundToChipIncrement } from '../constants/tournamentConstants.js';
 
 /**
  * @typedef {import('../store/types.js').GameState} GameState
@@ -404,7 +405,8 @@ export class GameValidator {
         player, 
         gameState.currentBet, 
         gameState.lastRaiseSize, 
-        gameState.bigBlind
+        gameState.bigBlind,
+        gameState
       );
 
       if (!availableActions.includes(action)) {
@@ -463,6 +465,12 @@ export class GameValidator {
     if (typeof amount !== 'number' || amount <= 0) {
       errors.push('Raise amount must be a positive number');
       return { errors, warnings };
+    }
+
+    // WSOP Rule: Validate chip increment
+    if (!validateChipAmount(amount, gameState.tournamentLevel)) {
+      const roundedAmount = roundToChipIncrement(amount, gameState.tournamentLevel);
+      warnings.push(`Amount rounded to valid chip increment: ${amount} → ${roundedAmount}`);
     }
 
     const minRaiseSize = Math.max(gameState.lastRaiseSize, gameState.bigBlind);
