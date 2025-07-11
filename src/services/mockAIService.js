@@ -257,23 +257,22 @@ export class MockAIService {
     const isShortStack = stackRatio < 10;
     const shortStackMultiplier = isShortStack ? (1 + riskTolerance * 0.3) : 1;
     
-    // Dynamic thresholds based on 4D strategy
-    const baseHandStrength = 400; // Base strength for average decision
-    const foldThreshold = baseHandStrength * thresholds.FOLD_THRESHOLD;
-    const callThreshold = baseHandStrength * thresholds.HAND_SELECTION_THRESHOLD;
-    const raiseThreshold = baseHandStrength * (1 + aggression * 0.5);
-    const allInThreshold = baseHandStrength * (1.5 + riskTolerance * 0.5);
+    // Dynamic thresholds based on 4D strategy (more reasonable values)
+    const foldThreshold = 150 + (tightness * 100); // 150-250 range
+    const callThreshold = 200 + (tightness * 150); // 200-350 range  
+    const raiseThreshold = 400 - (tightness * 100) + (aggression * 200); // 300-600 range
+    const allInThreshold = 700 - (tightness * 200) + (riskTolerance * 200); // 500-900 range
     
     // Check if we're getting good pot odds (influenced by mathematical thinking)
     const mathWeight = 1 - (adaptability * 0.3); // Less adaptable = more math-focused
-    const potOddsThreshold = 2.5 + (tightness * 1.5); // Tighter = need better odds
+    const potOddsThreshold = 1.8 + (tightness * 0.7); // 1.8-2.5 range (much more reasonable)
     const hasGoodPotOdds = potOdds >= potOddsThreshold;
-    const hasGreatPotOdds = potOdds >= potOddsThreshold * 1.5;
+    const hasGreatPotOdds = potOdds >= potOddsThreshold * 1.3;
     
-    // Bluffing and semi-bluffing logic based on 4D strategy
-    const positionBluffBonus = position === 'Button' ? adaptability * 0.3 : 0;
-    const shouldBluff = Math.random() < (thresholds.BLUFF_FREQUENCY + positionBluffBonus) && round !== 'preflop';
-    const shouldSemiBluff = Math.random() < (aggression * 0.15) && adjustedHandStrength >= 200 && round === 'flop';
+    // Bluffing and semi-bluffing logic based on 4D strategy (increased frequency)
+    const positionBluffBonus = position === 'Button' ? adaptability * 0.2 : 0;
+    const shouldBluff = Math.random() < (thresholds.BLUFF_FREQUENCY * 2 + positionBluffBonus) && round !== 'preflop';
+    const shouldSemiBluff = Math.random() < (aggression * 0.25) && adjustedHandStrength >= 150 && round === 'flop';
     
     // Apply risk tolerance and short stack multiplier
     const finalHandStrength = adjustedHandStrength * shortStackMultiplier;
@@ -302,7 +301,7 @@ export class MockAIService {
         return { action: 'call', amount: 0, reasoning: `${this.strategyProfile.name}: Strong hand - call` };
       }
     } else if (finalHandStrength >= callThreshold || 
-               (hasGoodPotOdds && finalHandStrength >= 200 * mathWeight) || 
+               (hasGoodPotOdds && finalHandStrength >= 150) || 
                hasGreatPotOdds) {
       // Decent hand, good pot odds, or great pot odds (tightness affects threshold)
       if (availableActions.includes('call')) {
@@ -380,13 +379,13 @@ export class MockAIService {
     const riskBonus = riskTolerance * 0.2; // Up to 20% more variance in sizing
     const finalMultiplier = baseMultiplier * BETTING_SIZE_MULTIPLIER * (1 + aggressionBonus + riskBonus);
     
-    const targetRaise = Math.floor(potSize * finalMultiplier);
-    const minRaiseTotal = currentGameBet + Math.max(minRaise, 200);
-    const maxRaiseTotal = Math.min(playerChips, currentGameBet + Math.floor(potSize * 1.5));
+    const targetTotalBet = currentGameBet + Math.floor(potSize * finalMultiplier);
+    const minTotalBet = currentGameBet + Math.max(minRaise, 200);
+    const maxTotalBet = Math.min(playerChips, currentGameBet + Math.floor(potSize * 1.5));
     
-    // Ensure raise is within valid bounds
-    const raiseAmount = Math.max(minRaiseTotal, Math.min(targetRaise, maxRaiseTotal));
-    return raiseAmount;
+    // Ensure raise is within valid bounds (return total bet amount, not just the raise)
+    const totalBetAmount = Math.max(minTotalBet, Math.min(targetTotalBet, maxTotalBet));
+    return totalBetAmount;
   }
 
   /**

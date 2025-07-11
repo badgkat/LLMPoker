@@ -11,8 +11,7 @@ import Card from '../ui/Card.jsx';
  */
 const ShowdownSequence = ({ showdownData, darkMode = false, onComplete }) => {
   const [currentPhase, setCurrentPhase] = useState('starting'); // 'starting', 'revealing', 'showing-results', 'completed'
-  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
-  const [revealedPlayers, setRevealedPlayers] = useState(new Set());
+  const [allHandsRevealed, setAllHandsRevealed] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
   const { handEvaluations, winners, sidePots, gameState } = showdownData;
@@ -62,43 +61,42 @@ const ShowdownSequence = ({ showdownData, darkMode = false, onComplete }) => {
     return winner?.amount || 0;
   }, [winners]);
 
+  // Ready for next hand function
+  const handleReadyForNextHand = useCallback(() => {
+    setCurrentPhase('completed');
+    onComplete?.();
+  }, [onComplete]);
+
   // Auto-advance through the sequence
   useEffect(() => {
     if (!showdownData) return;
 
-    const timer = setTimeout(() => {
-      if (currentPhase === 'starting') {
+    let timer;
+    
+    if (currentPhase === 'starting') {
+      // Start revealing after brief delay
+      timer = setTimeout(() => {
         setCurrentPhase('revealing');
-      } else if (currentPhase === 'revealing') {
-        if (currentPlayerIndex < activePlayers.length) {
-          // Reveal current player
-          setRevealedPlayers(prev => new Set([...prev, activePlayers[currentPlayerIndex].id]));
-          setCurrentPlayerIndex(prev => prev + 1);
-        } else {
-          // All players revealed, show results
-          setCurrentPhase('showing-results');
-          setShowResults(true);
-        }
-      } else if (currentPhase === 'showing-results') {
-        setCurrentPhase('completed');
-        // Wait a bit more before calling onComplete
-        setTimeout(() => {
-          onComplete?.();
-        }, 2000);
-      }
-    }, currentPhase === 'starting' ? 500 : currentPhase === 'revealing' ? 1500 : 3000);
-
+        setAllHandsRevealed(true); // Reveal all hands at once
+      }, 800);
+    } else if (currentPhase === 'revealing') {
+      // Show results after hands are revealed for a moment
+      timer = setTimeout(() => {
+        setCurrentPhase('showing-results');
+        setShowResults(true);
+      }, 2500);
+    }
+    
     return () => clearTimeout(timer);
-  }, [currentPhase, currentPlayerIndex, activePlayers.length, showdownData, onComplete]);
+  }, [currentPhase, showdownData]);
 
   if (!showdownData || !handEvaluations || handEvaluations.length === 0) {
-    console.log('ShowdownSequence early return:', { showdownData: !!showdownData, handEvaluations: handEvaluations?.length });
     return null;
   }
 
   return (
-    <div className={`fixed inset-0 ${themeClasses.overlay} flex items-center justify-center z-50 backdrop-blur-sm`}>
-      <div className={`max-w-6xl w-full mx-4 ${themeClasses.card} rounded-xl shadow-2xl overflow-hidden border-2`}>
+    <div className={`fixed inset-0 ${themeClasses.overlay} flex items-center justify-center z-50 backdrop-blur-sm p-4`}>
+      <div className={`max-w-6xl w-full h-full max-h-[90vh] ${themeClasses.card} rounded-xl shadow-2xl border-2 flex flex-col overflow-hidden`}>
         
         {/* Header */}
         <div className="p-6 border-b bg-gradient-to-r from-purple-600 to-blue-600 text-white">
@@ -108,14 +106,14 @@ const ShowdownSequence = ({ showdownData, darkMode = false, onComplete }) => {
             </h2>
             <p className="text-purple-100">
               {currentPhase === 'starting' && 'Revealing hands...'}
-              {currentPhase === 'revealing' && `Revealing ${activePlayers[Math.min(currentPlayerIndex, activePlayers.length - 1)]?.name || 'player'}'s hand...`}
+              {currentPhase === 'revealing' && 'All hands revealed!'}
               {currentPhase === 'showing-results' && 'Determining winners...'}
               {currentPhase === 'completed' && 'Hand complete!'}
             </p>
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="flex-1 overflow-y-auto p-6">
           {/* Community Cards */}
           <div className="text-center mb-8">
             <h3 className={`text-xl font-semibold mb-4 ${themeClasses.text}`}>
@@ -136,9 +134,9 @@ const ShowdownSequence = ({ showdownData, darkMode = false, onComplete }) => {
 
           {/* Players Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {handEvaluations.map((handEval, index) => {
+            {handEvaluations.map((handEval) => {
               const player = handEval.player;
-              const isRevealed = revealedPlayers.has(player.id);
+              const isRevealed = allHandsRevealed;
               const isWinner = isPlayerWinner(player.id);
               const winAmount = getPlayerWinAmount(player.id);
               const showHighlight = showResults && isWinner;
@@ -254,16 +252,21 @@ const ShowdownSequence = ({ showdownData, darkMode = false, onComplete }) => {
             </div>
           )}
 
-          {/* Skip Button */}
-          <div className="text-center mt-6">
-            <button
-              onClick={() => onComplete?.()}
-              className={`px-6 py-2 rounded-lg transition-colors ${themeClasses.button}`}
-            >
-              Skip Animation
-            </button>
-          </div>
         </div>
+        
+        {/* Fixed Footer with Ready Button */}
+        {currentPhase === 'showing-results' && (
+          <div className="border-t bg-gradient-to-r from-green-600 to-green-700 p-4">
+            <div className="text-center">
+              <button
+                onClick={handleReadyForNextHand}
+                className="px-8 py-4 text-xl font-bold rounded-lg transition-all transform hover:scale-105 shadow-lg bg-white text-green-700 border-2 border-green-200 hover:bg-green-50 animate-pulse"
+              >
+                🚀 Ready for Next Hand
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

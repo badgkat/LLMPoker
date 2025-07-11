@@ -139,11 +139,11 @@ export function generateRandom4DStrategy() {
 export function calculate4DBehaviorThresholds(strategy) {
   const { tightness, aggression, adaptability, riskTolerance } = strategy;
   
-  // Convert 4D ratings to actionable thresholds
-  const handSelectionThreshold = 0.2 + (tightness * 0.6); // 0.2-0.8 range
-  const raiseFrequency = 0.1 + (aggression * 0.4); // 0.1-0.5 range
-  const bluffFrequency = (aggression * 0.3) + (riskTolerance * 0.2); // 0.0-0.5 range
-  const foldThreshold = 0.3 + (tightness * 0.4); // 0.3-0.7 range
+  // Convert 4D ratings to actionable thresholds (more aggressive ranges)
+  const handSelectionThreshold = 0.15 + (tightness * 0.4); // 0.15-0.55 range (looser)
+  const raiseFrequency = 0.2 + (aggression * 0.6); // 0.2-0.8 range (more raises)
+  const bluffFrequency = (aggression * 0.15) + (riskTolerance * 0.15); // 0.0-0.3 range (more reasonable)
+  const foldThreshold = 0.25 + (tightness * 0.35); // 0.25-0.6 range (less folding)
   const adaptabilityFactor = 0.5 + (adaptability * 0.5); // 0.5-1.0 range
   
   return {
