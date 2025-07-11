@@ -1,4 +1,9 @@
-import { AI_STRATEGIES, AI_STRATEGY_DESCRIPTIONS } from '../constants/aiConstants.js';
+import { 
+  AI_STRATEGIES, 
+  AI_PERSONALITY_PROFILES,
+  LEGACY_TO_4D_MAPPING,
+  generate4DPersonalityPrompt
+} from '../constants/aiConstants.js';
 import { getAvailableActions } from '../utils/pokerLogic.js';
 import { formatCards } from '../utils/deckUtils.js';
 import { llmService } from '../services/llmService.js';
@@ -105,13 +110,15 @@ export class AIEngine {
 
   /**
    * Get AI decision using LLM service
+   * Now uses 4D strategy system for more realistic AI personalities
    * @param {Player} player - AI player
    * @param {GameState} gameState - Current game state
    * @param {Object} gameContext - Game context
    * @returns {Promise<AIDecision>}
    */
   async getLLMAIDecision(player, gameState, gameContext) {
-    const strategy = AI_STRATEGY_DESCRIPTIONS[player.actualStrategy || player.strategy];
+    // Get 4D strategy profile (convert legacy if needed)
+    const strategyProfile = this.get4DStrategyProfile(player);
     const memory = this.memories.get(player.id) || [];
     const availableActions = getAvailableActions(
       player, 
@@ -120,17 +127,16 @@ export class AIEngine {
       gameState.bigBlind
     );
 
-
     const prompt = this.buildLLMPrompt(
       player, 
       gameState, 
       gameContext, 
-      strategy, 
+      strategyProfile, 
       memory, 
       availableActions
     );
 
-    const response = await llmService.getAIDecision(prompt);
+    const response = await llmService.getAIDecision(prompt, strategyProfile);
     const decision = {
       action: response.action,
       amount: response.amount,
@@ -164,17 +170,47 @@ export class AIEngine {
   }
 
   /**
+   * Get 4D strategy profile for a player
+   * Converts legacy strategy to 4D profile if needed
+   * @param {Player} player - AI player
+   * @returns {Object} 4D strategy profile
+   */
+  get4DStrategyProfile(player) {
+    // Check if player already has a 4D strategy profile
+    if (player.strategyProfile && 
+        typeof player.strategyProfile === 'object' && 
+        'tightness' in player.strategyProfile) {
+      return player.strategyProfile;
+    }
+    
+    // Convert legacy strategy to 4D profile
+    const legacyStrategy = player.actualStrategy || player.strategy;
+    const mappedProfile = LEGACY_TO_4D_MAPPING[legacyStrategy];
+    
+    if (mappedProfile) {
+      return mappedProfile;
+    }
+    
+    // Default to TAG if no mapping found
+    return AI_PERSONALITY_PROFILES.TAG;
+  }
+
+  /**
    * Build prompt for LLM AI
+   * Now uses 4D strategy profile for more realistic AI personalities
    * @param {Player} player - AI player
    * @param {GameState} gameState - Current game state
    * @param {Object} gameContext - Game context
-   * @param {string} strategy - Strategy description
+   * @param {Object} strategyProfile - 4D strategy profile
    * @param {Array} memory - Player memory
    * @param {string[]} availableActions - Available actions
    * @returns {string} Formatted prompt
    */
-  buildLLMPrompt(player, gameState, gameContext, strategy, memory, availableActions) {
-    return `${strategy}
+  buildLLMPrompt(player, gameState, gameContext, strategyProfile, memory, availableActions) {
+    // Generate personality description from 4D strategy
+    const personalityDescription = generate4DPersonalityPrompt(strategyProfile, player.name);
+    
+    return `${personalityDescription}
 
 Current game situation:
 - Your hole cards: ${formatCards(player.holeCards)}
@@ -198,13 +234,19 @@ Stack to pot ratio: ${this.calculateStackToPotRatio(player.chips, gameState.pot)
 
 Available actions: ${availableActions.join(', ')}
 
+Strategy Guidance:
+- Tightness (${(strategyProfile.tightness * 100).toFixed(0)}%): ${strategyProfile.tightness > 0.6 ? 'Play fewer hands, focus on premium holdings' : 'Play more hands, be willing to speculate'}
+- Aggression (${(strategyProfile.aggression * 100).toFixed(0)}%): ${strategyProfile.aggression > 0.6 ? 'Bet and raise frequently, apply pressure' : 'Prefer calling and checking, avoid confrontation'}
+- Adaptability (${(strategyProfile.adaptability * 100).toFixed(0)}%): ${strategyProfile.adaptability > 0.6 ? 'Adjust strategy based on opponents and position' : 'Stick to consistent patterns'}
+- Risk Tolerance (${(strategyProfile.riskTolerance * 100).toFixed(0)}%): ${strategyProfile.riskTolerance > 0.6 ? 'Embrace high variance plays and big pots' : 'Prefer predictable, low variance outcomes'}
+
 Note: Burn cards are face down and unknown. Base your decisions on visible cards only.
 
 Respond with a JSON object:
 {
   "action": "fold|check|call|raise|all-in",
   "amount": number (only for raise),
-  "reasoning": "brief explanation of your decision"
+  "reasoning": "brief explanation of your decision that reflects your personality"
 }
 
 Your entire response must be valid JSON only.`;

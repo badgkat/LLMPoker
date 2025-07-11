@@ -1,9 +1,13 @@
 /**
  * Mock AI Service for poker decisions
  * Provides a mathematical decision-making engine for testing and fallback scenarios
+ * Now uses 4D strategy ratings for more realistic poker behavior
  */
 
-import { PLAYER_ACTIONS } from '../constants/gameConstants.js';
+import { 
+  AI_PERSONALITY_PROFILES, 
+  calculate4DBehaviorThresholds
+} from '../constants/aiConstants.js';
 
 /**
  * @typedef {Object} MockAIResponse
@@ -13,12 +17,18 @@ import { PLAYER_ACTIONS } from '../constants/gameConstants.js';
  */
 
 export class MockAIService {
-  constructor() {
-    // Mock AI configuration
+  constructor(strategyProfile = null) {
+    // Use provided strategy or default to TAG profile
+    this.strategyProfile = strategyProfile || AI_PERSONALITY_PROFILES.TAG;
+    
+    // Calculate behavior thresholds from 4D strategy
+    this.behaviorThresholds = calculate4DBehaviorThresholds(this.strategyProfile);
+    
+    // Legacy compatibility
     this.config = {
-      aggression: 0.6, // 0-1 scale
-      bluffFrequency: 0.15, // 15% bluff rate
-      positionAwareness: true,
+      aggression: this.strategyProfile.aggression,
+      bluffFrequency: this.behaviorThresholds.BLUFF_FREQUENCY,
+      positionAwareness: this.strategyProfile.adaptability > 0.5,
       mathBased: true
     };
   }
@@ -227,83 +237,96 @@ export class MockAIService {
 
   /**
    * Make mathematical decision based on game context and hand strength
+   * Now uses 4D strategy ratings for more realistic decision making
    * @param {Object} context - Game context
    * @param {number} handStrength - Hand strength (0-1000)
    * @returns {MockAIResponse} Decision object
    */
   makeMathematicalDecision(context, handStrength) {
     const { availableActions, callAmount, potSize, potOdds, position, round, stackSize } = context;
+    const { tightness, aggression, adaptability, riskTolerance } = this.strategyProfile;
+    const thresholds = this.behaviorThresholds;
     
-    // Position multipliers (early position plays tighter)
+    // Position multipliers based on adaptability (more adaptable = more position aware)
     const positionMultiplier = this.getPositionMultiplier(position);
-    const adjustedHandStrength = handStrength * positionMultiplier;
+    const positionAdjustment = 1 + (adaptability * (positionMultiplier - 1));
+    const adjustedHandStrength = handStrength * positionAdjustment;
     
-    // Stack size considerations
+    // Stack size considerations influenced by risk tolerance
     const stackRatio = stackSize / potSize;
     const isShortStack = stackRatio < 10;
+    const shortStackMultiplier = isShortStack ? (1 + riskTolerance * 0.3) : 1;
     
-    // Decision thresholds based on hand strength
-    const foldThreshold = round === 'preflop' ? 180 : 150;
-    const callThreshold = round === 'preflop' ? 300 : 250;
-    const raiseThreshold = round === 'preflop' ? 500 : 450;
-    const allInThreshold = round === 'preflop' ? 750 : 700;
+    // Dynamic thresholds based on 4D strategy
+    const baseHandStrength = 400; // Base strength for average decision
+    const foldThreshold = baseHandStrength * thresholds.FOLD_THRESHOLD;
+    const callThreshold = baseHandStrength * thresholds.HAND_SELECTION_THRESHOLD;
+    const raiseThreshold = baseHandStrength * (1 + aggression * 0.5);
+    const allInThreshold = baseHandStrength * (1.5 + riskTolerance * 0.5);
     
-    // Check if we're getting good pot odds
-    const hasGoodPotOdds = potOdds >= 2.5; // 2.5:1 or better
-    const hasGreatPotOdds = potOdds >= 4.0; // 4:1 or better
+    // Check if we're getting good pot odds (influenced by mathematical thinking)
+    const mathWeight = 1 - (adaptability * 0.3); // Less adaptable = more math-focused
+    const potOddsThreshold = 2.5 + (tightness * 1.5); // Tighter = need better odds
+    const hasGoodPotOdds = potOdds >= potOddsThreshold;
+    const hasGreatPotOdds = potOdds >= potOddsThreshold * 1.5;
     
-    // Add some semi-bluffing and position-based aggression
-    const shouldBluff = Math.random() < this.config.bluffFrequency && position === 'Button' && round !== 'preflop';
-    const shouldSemiBluff = Math.random() < 0.1 && adjustedHandStrength >= 200 && round === 'flop';
+    // Bluffing and semi-bluffing logic based on 4D strategy
+    const positionBluffBonus = position === 'Button' ? adaptability * 0.3 : 0;
+    const shouldBluff = Math.random() < (thresholds.BLUFF_FREQUENCY + positionBluffBonus) && round !== 'preflop';
+    const shouldSemiBluff = Math.random() < (aggression * 0.15) && adjustedHandStrength >= 200 && round === 'flop';
     
-    // Decision logic
-    if (adjustedHandStrength >= allInThreshold || (isShortStack && adjustedHandStrength >= raiseThreshold)) {
-      // Very strong hand or short stack with good hand
+    // Apply risk tolerance and short stack multiplier
+    const finalHandStrength = adjustedHandStrength * shortStackMultiplier;
+    
+    // Decision logic tree based on 4D strategy
+    if (finalHandStrength >= allInThreshold || (isShortStack && finalHandStrength >= raiseThreshold && riskTolerance > 0.6)) {
+      // Very strong hand or short stack with good hand (risk tolerance affects short stack play)
       if (availableActions.includes('all-in')) {
-        return { action: 'all-in', amount: 0, reasoning: 'Very strong hand - all-in' };
+        return { action: 'all-in', amount: 0, reasoning: `${this.strategyProfile.name}: Very strong hand - all-in` };
       } else if (availableActions.includes('raise')) {
         const raiseAmount = this.calculateRaiseAmount(context, 'aggressive');
-        return { action: 'raise', amount: raiseAmount, reasoning: 'Strong hand - aggressive raise' };
+        return { action: 'raise', amount: raiseAmount, reasoning: `${this.strategyProfile.name}: Strong hand - aggressive raise` };
       } else if (availableActions.includes('call')) {
-        return { action: 'call', amount: 0, reasoning: 'Strong hand - call' };
+        return { action: 'call', amount: 0, reasoning: `${this.strategyProfile.name}: Strong hand - call` };
       }
-    } else if (adjustedHandStrength >= raiseThreshold || shouldBluff || shouldSemiBluff) {
-      // Strong hand, bluff, or semi-bluff
+    } else if (finalHandStrength >= raiseThreshold || shouldBluff || shouldSemiBluff) {
+      // Strong hand, bluff, or semi-bluff (frequency based on aggression)
       if (availableActions.includes('raise')) {
         const strategy = shouldBluff ? 'bluff' : (shouldSemiBluff ? 'aggressive' : 'value');
         const raiseAmount = this.calculateRaiseAmount(context, strategy);
-        const reasoning = shouldBluff ? 'Position bluff' : (shouldSemiBluff ? 'Semi-bluff with draws' : 'Strong hand - value raise');
+        const reasoning = shouldBluff ? `${this.strategyProfile.name}: Position bluff` : 
+                         (shouldSemiBluff ? `${this.strategyProfile.name}: Semi-bluff with draws` : 
+                          `${this.strategyProfile.name}: Strong hand - value raise`);
         return { action: 'raise', amount: raiseAmount, reasoning };
       } else if (availableActions.includes('call')) {
-        return { action: 'call', amount: 0, reasoning: 'Strong hand - call' };
+        return { action: 'call', amount: 0, reasoning: `${this.strategyProfile.name}: Strong hand - call` };
       }
-    } else if (adjustedHandStrength >= callThreshold || (hasGoodPotOdds && adjustedHandStrength >= 200) || hasGreatPotOdds) {
-      // Decent hand, good pot odds, or great pot odds
+    } else if (finalHandStrength >= callThreshold || 
+               (hasGoodPotOdds && finalHandStrength >= 200 * mathWeight) || 
+               hasGreatPotOdds) {
+      // Decent hand, good pot odds, or great pot odds (tightness affects threshold)
       if (availableActions.includes('call')) {
-        const reasoning = hasGreatPotOdds ? 'Great pot odds - call' : (hasGoodPotOdds ? 'Good pot odds - call' : 'Decent hand - call');
+        const reasoning = hasGreatPotOdds ? `${this.strategyProfile.name}: Great pot odds - call` : 
+                         (hasGoodPotOdds ? `${this.strategyProfile.name}: Good pot odds - call` : 
+                          `${this.strategyProfile.name}: Decent hand - call`);
         return { action: 'call', amount: 0, reasoning };
       } else if (availableActions.includes('check')) {
-        return { action: 'check', amount: 0, reasoning: 'Decent hand - check' };
+        return { action: 'check', amount: 0, reasoning: `${this.strategyProfile.name}: Decent hand - check` };
       }
-    } else if (adjustedHandStrength >= foldThreshold && callAmount === 0) {
-      // Weak hand but free to see more cards
-      if (availableActions.includes('check')) {
-        return { action: 'check', amount: 0, reasoning: 'Weak hand - check for free card' };
-      }
-    } else if (hasGreatPotOdds && adjustedHandStrength >= 100) {
-      // Great pot odds with any hand
-      if (availableActions.includes('call')) {
-        return { action: 'call', amount: 0, reasoning: 'Great pot odds - speculative call' };
+    } else if (finalHandStrength >= foldThreshold && callAmount === 0) {
+      // Weak hand but free to see more cards (tightness affects willingness to see free cards)
+      if (availableActions.includes('check') && tightness < 0.8) {
+        return { action: 'check', amount: 0, reasoning: `${this.strategyProfile.name}: Weak hand - check for free card` };
       }
     }
     
     // Default to fold
     if (availableActions.includes('fold')) {
-      return { action: 'fold', amount: 0, reasoning: 'Weak hand - fold' };
+      return { action: 'fold', amount: 0, reasoning: `${this.strategyProfile.name}: Weak hand - fold` };
     }
     
     // Emergency fallback
-    return { action: availableActions[0], amount: 0, reasoning: 'Emergency fallback decision' };
+    return { action: availableActions[0], amount: 0, reasoning: `${this.strategyProfile.name}: Emergency fallback decision` };
   }
 
   /**
@@ -326,6 +349,7 @@ export class MockAIService {
 
   /**
    * Calculate raise amount based on context and strategy
+   * Now uses 4D strategy ratings for bet sizing
    * @param {Object} context - Game context
    * @param {string} strategy - 'value', 'aggressive', 'bluff'
    * @returns {number} Raise amount
@@ -333,23 +357,30 @@ export class MockAIService {
   calculateRaiseAmount(context, strategy = 'value') {
     const { potSize, minRaise, playerChips, callAmount } = context;
     const currentGameBet = callAmount;
+    const { aggression, riskTolerance } = this.strategyProfile;
+    const { BETTING_SIZE_MULTIPLIER } = this.behaviorThresholds;
     
-    let raiseMultiplier;
+    let baseMultiplier;
     switch (strategy) {
       case 'aggressive':
-        raiseMultiplier = 0.8 + Math.random() * 0.4; // 80-120% pot
+        baseMultiplier = 0.8 + Math.random() * 0.4; // 80-120% pot
         break;
       case 'value':
-        raiseMultiplier = 0.5 + Math.random() * 0.3; // 50-80% pot
+        baseMultiplier = 0.5 + Math.random() * 0.3; // 50-80% pot
         break;
       case 'bluff':
-        raiseMultiplier = 0.6 + Math.random() * 0.2; // 60-80% pot
+        baseMultiplier = 0.6 + Math.random() * 0.2; // 60-80% pot
         break;
       default:
-        raiseMultiplier = 0.6; // 60% pot
+        baseMultiplier = 0.6; // 60% pot
     }
     
-    const targetRaise = Math.floor(potSize * raiseMultiplier);
+    // Adjust multiplier based on 4D strategy
+    const aggressionBonus = aggression * 0.3; // Up to 30% more aggressive sizing
+    const riskBonus = riskTolerance * 0.2; // Up to 20% more variance in sizing
+    const finalMultiplier = baseMultiplier * BETTING_SIZE_MULTIPLIER * (1 + aggressionBonus + riskBonus);
+    
+    const targetRaise = Math.floor(potSize * finalMultiplier);
     const minRaiseTotal = currentGameBet + Math.max(minRaise, 200);
     const maxRaiseTotal = Math.min(playerChips, currentGameBet + Math.floor(potSize * 1.5));
     
@@ -359,19 +390,74 @@ export class MockAIService {
   }
 
   /**
-   * Update AI configuration
+   * Update AI strategy profile
+   * @param {Object} newProfile - New 4D strategy profile
+   */
+  updateStrategyProfile(newProfile) {
+    this.strategyProfile = { ...this.strategyProfile, ...newProfile };
+    this.behaviorThresholds = calculate4DBehaviorThresholds(this.strategyProfile);
+    
+    // Update legacy config for backward compatibility
+    this.config = {
+      aggression: this.strategyProfile.aggression,
+      bluffFrequency: this.behaviorThresholds.BLUFF_FREQUENCY,
+      positionAwareness: this.strategyProfile.adaptability > 0.5,
+      mathBased: true
+    };
+  }
+
+  /**
+   * Update AI configuration (legacy method)
    * @param {Object} newConfig - New configuration values
    */
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
+    
+    // Try to map legacy config back to 4D strategy
+    if (newConfig.aggression !== undefined) {
+      this.strategyProfile.aggression = newConfig.aggression;
+    }
+    if (newConfig.bluffFrequency !== undefined) {
+      // Approximate mapping from bluff frequency to aggression/risk
+      this.strategyProfile.aggression = Math.max(0, Math.min(1, newConfig.bluffFrequency * 3));
+      this.strategyProfile.riskTolerance = Math.max(0, Math.min(1, newConfig.bluffFrequency * 2));
+    }
+    
+    // Recalculate behavior thresholds
+    this.behaviorThresholds = calculate4DBehaviorThresholds(this.strategyProfile);
   }
 
   /**
-   * Get current configuration
+   * Get current 4D strategy profile
+   * @returns {Object} Current strategy profile with behavior thresholds
+   */
+  getStrategyProfile() {
+    return {
+      profile: { ...this.strategyProfile },
+      behaviorThresholds: { ...this.behaviorThresholds }
+    };
+  }
+
+  /**
+   * Get current configuration (legacy method)
    * @returns {Object} Current configuration
    */
   getConfig() {
     return { ...this.config };
+  }
+
+  /**
+   * Get a readable description of the current strategy
+   * @returns {string} Strategy description
+   */
+  getStrategyDescription() {
+    const { tightness, aggression, adaptability, riskTolerance, name, description } = this.strategyProfile;
+    
+    return `${name} (${description})
+Tightness: ${(tightness * 100).toFixed(0)}% (${tightness > 0.7 ? 'Very Tight' : tightness > 0.5 ? 'Tight' : tightness > 0.3 ? 'Loose' : 'Very Loose'})
+Aggression: ${(aggression * 100).toFixed(0)}% (${aggression > 0.7 ? 'Very Aggressive' : aggression > 0.5 ? 'Aggressive' : aggression > 0.3 ? 'Passive' : 'Very Passive'})
+Adaptability: ${(adaptability * 100).toFixed(0)}% (${adaptability > 0.7 ? 'Highly Adaptable' : adaptability > 0.5 ? 'Adaptable' : adaptability > 0.3 ? 'Consistent' : 'Very Consistent'})
+Risk Tolerance: ${(riskTolerance * 100).toFixed(0)}% (${riskTolerance > 0.7 ? 'High Risk' : riskTolerance > 0.5 ? 'Medium Risk' : riskTolerance > 0.3 ? 'Low Risk' : 'Risk Averse'})`;
   }
 }
 

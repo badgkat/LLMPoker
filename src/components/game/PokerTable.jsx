@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
 import { useGameState, useGameStore } from '../../store/gameStore.js';
 import { usePlayerActions } from '../../hooks/usePlayerActions.js';
+import { useGameFlow } from '../../hooks/useGameFlow.js';
 import PlayerSeat from './PlayerSeat.jsx';
 import CommunityCards from './CommunityCards.jsx';
 import ActionPanel from './ActionPanel.jsx';
 import GameLog from '../ui/GameLog.jsx';
 import HandSummary from './HandSummary.jsx';
+import ShowdownSequence from './ShowdownSequence.jsx';
 import ThemeToggle from '../ui/ThemeToggle.jsx';
 
 /**
@@ -17,8 +19,9 @@ import ThemeToggle from '../ui/ThemeToggle.jsx';
  */
 const PokerTable = ({ darkMode = false, onToggleTheme }) => {
   const gameState = useGameState();
-  const { setHandSummary } = useGameStore();
+  const { setHandSummary, showdownData } = useGameStore();
   const { processAIAction, currentPlayer } = usePlayerActions();
+  const { handleShowdownComplete } = useGameFlow();
 
   // Handle AI player actions
   useEffect(() => {
@@ -68,6 +71,15 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
   return (
     <div className={`min-h-screen ${themeClasses.bg} ${themeClasses.text} relative overflow-hidden flex flex-col`}>
       
+      {/* Showdown Sequence Overlay */}
+      {showdownData && gameState.showingShowdown && (
+        <ShowdownSequence 
+          showdownData={showdownData}
+          darkMode={darkMode}
+          onComplete={() => handleShowdownComplete(showdownData)}
+        />
+      )}
+
       {/* Hand Summary Overlay */}
       <HandSummary 
         handSummary={gameState.handSummary}

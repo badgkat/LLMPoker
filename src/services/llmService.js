@@ -122,15 +122,16 @@ export class LLMService {
   /**
    * Get AI decision for poker action
    * @param {string} prompt - The formatted prompt for the AI
+   * @param {Object} strategyProfile - Optional 4D strategy profile for mock AI
    * @returns {Promise<LLMResponse>}
    */
-  async getAIDecision(prompt) {
+  async getAIDecision(prompt, strategyProfile = null) {
     if (!this.initialized) {
       await this.initialize();
     }
 
     try {
-      const response = await this.makeRequest(prompt);
+      const response = await this.makeRequest(prompt, strategyProfile);
       const decision = this.parseResponse(response);
       return decision;
     } catch (error) {
@@ -144,9 +145,10 @@ export class LLMService {
   /**
    * Make request to the configured LLM provider
    * @param {string} prompt - The prompt to send
+   * @param {Object} strategyProfile - Optional 4D strategy profile for mock AI
    * @returns {Promise<string>}
    */
-  async makeRequest(prompt) {
+  async makeRequest(prompt, strategyProfile = null) {
     switch (this.config.provider) {
       case 'openai':
         return this.makeOpenAIRequest(prompt);
@@ -155,7 +157,7 @@ export class LLMService {
       case 'local':
         return this.makeLocalRequest(prompt);
       default:
-        return this.makeMockRequest(prompt);
+        return this.makeMockRequest(prompt, strategyProfile);
     }
   }
 
@@ -270,10 +272,16 @@ export class LLMService {
   /**
    * Mock request for testing/fallback - delegates to dedicated mock AI service
    * @param {string} prompt - The prompt containing game state
+   * @param {Object} strategyProfile - Optional 4D strategy profile
    * @returns {Promise<string>}
    */
-  async makeMockRequest(prompt) {
-    const decision = await mockAIService.getAIDecision(prompt);
+  async makeMockRequest(prompt, strategyProfile = null) {
+    // Create a mock AI service instance with the specific strategy profile
+    const mockService = strategyProfile ? 
+      new (await import('./mockAIService.js')).MockAIService(strategyProfile) :
+      mockAIService;
+    
+    const decision = await mockService.getAIDecision(prompt);
     return JSON.stringify(decision);
   }
 

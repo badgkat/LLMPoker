@@ -52,7 +52,7 @@ npm install && npm run dev
 ## 🧠 AI Configuration
 
 ### Mock AI (Default - No Setup Required)
-Perfect for testing and development. The AI makes random but valid poker decisions.
+Sophisticated mathematical AI engine with position awareness, pot odds calculation, and strategic decision-making. Perfect for testing and development without requiring external APIs.
 
 ### OpenAI Integration
 1. Get API key from [OpenAI Platform](https://platform.openai.com/api-keys)
@@ -110,9 +110,15 @@ src/
 │   └── settings/        # Configuration components
 ├── constants/           # Game constants and configs
 ├── hooks/              # Custom React hooks
-├── services/           # External services (LLM)
+├── services/           # External services
+│   ├── llmService.js   # Multi-provider LLM integration
+│   └── mockAIService.js # Mathematical mock AI engine
 ├── store/              # Zustand state management
-└── utils/              # Game logic utilities
+├── utils/              # Game logic utilities
+│   ├── gameEngine.js   # Core poker game engine
+│   ├── pokerLogic.js   # Hand evaluation and rules
+│   └── detailedLogger.js # Comprehensive logging system
+└── styles/             # Global CSS and themes
 ```
 
 ## 🛠️ Development

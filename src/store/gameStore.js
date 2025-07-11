@@ -30,6 +30,7 @@ const initialGameState = {
   lastAction: null,
   processingPhase: false,
   showingSummary: false,
+  showingShowdown: false,
   actionCount: 0
 };
 
@@ -55,6 +56,7 @@ export const useGameStore = create(
     playerSetup: initialPlayerSetup,
     gameLog: initialGameLog,
     handSummary: null,
+    showdownData: null,
     aiMemories: {},
     betAmount: DEFAULT_SETTINGS.BIG_BLIND,
     darkMode: false,
@@ -80,6 +82,8 @@ export const useGameStore = create(
 
     setHandSummary: (summary) => set({ handSummary: summary }),
 
+    setShowdownData: (data) => set({ showdownData: data }),
+
     setAiMemories: (memories) => set({ aiMemories: memories }),
 
     setBetAmount: (amount) => set({ betAmount: amount }),
@@ -92,6 +96,7 @@ export const useGameStore = create(
       playerSetup: initialPlayerSetup,
       gameLog: initialGameLog,
       handSummary: null,
+      showdownData: null,
       aiMemories: {},
       betAmount: DEFAULT_SETTINGS.BIG_BLIND
     }),

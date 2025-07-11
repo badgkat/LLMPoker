@@ -14,6 +14,7 @@ export const useGameFlow = () => {
   const { 
     setGameState, 
     setHandSummary,
+    setShowdownData,
     resetGame 
   } = useGameStore();
 
@@ -124,14 +125,9 @@ export const useGameFlow = () => {
         }
       });
 
-      // Show hand summary
-      const summary = createHandSummary(data);
-      setHandSummary(summary);
-      
-      // Start next hand after delay
-      setTimeout(() => {
-        startNextHand(data.gameState);
-      }, 3000);
+      // Set showdown data to trigger the sequence
+      setShowdownData(data);
+      setGameState({ showingShowdown: true });
     });
 
     // Hand ending events
@@ -258,6 +254,62 @@ export const useGameFlow = () => {
   }, []);
 
   /**
+   * Start the next hand after current hand completes
+   * @param {Object} currentState - Current game state
+   * @returns {void}
+   */
+  const startNextHand = useCallback((currentState) => {
+    try {
+      // Check if game should end
+      const playersWithChips = currentState.players.filter(p => p.chips > 0);
+      if (playersWithChips.length < 2) {
+        setGameState({ 
+          ...currentState, 
+          phase: GAME_PHASES.GAME_OVER 
+        });
+        return;
+      }
+      
+      // Move dealer button
+      const newDealerButton = (currentState.dealerButton + 1) % currentState.players.length;
+      
+      // Update hand number and dealer
+      const preHandState = {
+        ...currentState,
+        handNumber: currentState.handNumber + 1,
+        dealerButton: newDealerButton,
+        showingSummary: false
+      };
+      
+      // Start new hand through game engine
+      const newHandState = gameEngine.startNewHand(preHandState);
+      setGameState(newHandState);
+      
+    } catch (error) {
+      console.error('Error starting next hand:', error);
+    }
+  }, [setGameState]);
+
+  /**
+   * Handle completion of showdown sequence
+   * @param {Object} showdownData - Showdown data
+   */
+  const handleShowdownComplete = useCallback((showdownData) => {
+    // Show hand summary
+    const summary = createHandSummary(showdownData);
+    setHandSummary(summary);
+    
+    // Clear showdown data and state
+    setShowdownData(null);
+    setGameState({ showingShowdown: false });
+    
+    // Start next hand after delay
+    setTimeout(() => {
+      startNextHand(showdownData.gameState);
+    }, 3000);
+  }, [createHandSummary, setHandSummary, setShowdownData, setGameState, startNextHand]);
+
+  /**
    * Start a new game
    * @param {Object} playerSetup - Player setup configuration
    * @returns {Promise<void>}
@@ -323,43 +375,6 @@ export const useGameFlow = () => {
   }, [gameState]);
 
   /**
-   * Start the next hand after current hand completes
-   * @param {Object} currentState - Current game state
-   * @returns {void}
-   */
-  const startNextHand = useCallback((currentState) => {
-    try {
-      // Check if game should end
-      const playersWithChips = currentState.players.filter(p => p.chips > 0);
-      if (playersWithChips.length < 2) {
-        setGameState({ 
-          ...currentState, 
-          phase: GAME_PHASES.GAME_OVER 
-        });
-        return;
-      }
-      
-      // Move dealer button
-      const newDealerButton = (currentState.dealerButton + 1) % currentState.players.length;
-      
-      // Update hand number and dealer
-      const preHandState = {
-        ...currentState,
-        handNumber: currentState.handNumber + 1,
-        dealerButton: newDealerButton,
-        showingSummary: false
-      };
-      
-      // Start new hand through game engine
-      const newHandState = gameEngine.startNewHand(preHandState);
-      setGameState(newHandState);
-      
-    } catch (error) {
-      console.error('Error starting next hand:', error);
-    }
-  }, [setGameState]);
-
-  /**
    * Force advance to next hand (for testing/admin)
    * @returns {void}
    */
@@ -373,6 +388,7 @@ export const useGameFlow = () => {
     // Game control methods
     startNewGame,
     forceNextHand,
+    handleShowdownComplete,
     
     // Statistics and info
     getAIStats,

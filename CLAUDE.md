@@ -39,7 +39,8 @@ LLMPoker/
 │   │   └── settings/               # Configuration components
 │   │       └── LLMSettings.jsx     # AI provider configuration
 │   ├── services/
-│   │   └── llmService.js           # Multi-provider LLM integration
+│   │   ├── llmService.js           # Multi-provider LLM integration
+│   │   └── mockAIService.js        # Mathematical mock AI engine
 │   ├── store/
 │   │   ├── gameStore.js            # Zustand state management
 │   │   └── types.js                # JSDoc type definitions
@@ -47,7 +48,8 @@ LLMPoker/
 │   │   ├── gameEngine.js           # Core poker game logic
 │   │   ├── pokerLogic.js           # Hand evaluation and rules
 │   │   ├── deckUtils.js            # Card handling utilities
-│   │   └── gameValidation.js       # Input validation and checks
+│   │   ├── gameValidation.js       # Input validation and checks
+│   │   └── detailedLogger.js       # Comprehensive logging system
 │   └── constants/
 │       ├── gameConstants.js        # Poker rules and settings
 │       └── aiConstants.js          # AI strategy definitions
@@ -95,15 +97,31 @@ const ComponentName = ({ prop1, prop2 }) => {
 export default ComponentName;
 ```
 
-### 3. AI Integration Pattern
+### 3. Service Layer Pattern
 ```javascript
-// AI decisions through service layer
+// LLM Service - Multi-provider AI integration
 import { llmService } from '../services/llmService.js';
 
+// For production LLM calls
 const decision = await llmService.getAIDecision(prompt);
+
+// Mock AI Service - Mathematical decision engine  
+import { mockAIService } from '../services/mockAIService.js';
+
+// For testing/fallback scenarios
+const mockDecision = await mockAIService.getAIDecision(prompt);
 ```
 
-### 4. Error Handling Pattern
+### 4. Logging Pattern
+```javascript
+// Detailed logging with AI reasoning capture
+import { logPlayerAction, logGameStateChange } from '../utils/detailedLogger.js';
+
+logPlayerAction(player, action, amount, gameState, context);
+logGameStateChange(oldState, newState, reason);
+```
+
+### 5. Error Handling Pattern
 ```javascript
 // Consistent error handling
 try {
@@ -114,6 +132,28 @@ try {
   return fallbackValue;
 }
 ```
+
+## 🏗️ Service Architecture
+
+### LLM Service (`services/llmService.js`)
+**Responsibility**: Multi-provider LLM integration and configuration
+- **Lines**: 417 (reduced from 741 after refactor)
+- **Providers**: OpenAI, Anthropic, Local (Ollama), Mock
+- **Features**: Auto-fallback, connection testing, configuration management
+- **Pattern**: Clean separation of concerns with dedicated mock service
+
+### Mock AI Service (`services/mockAIService.js`) 
+**Responsibility**: Mathematical poker decision engine for testing/fallback
+- **Lines**: 356 (extracted from LLM service)
+- **Features**: Position awareness, pot odds calculation, strategic bluffing
+- **Strategies**: Value betting, aggressive play, positional adjustments
+- **Benefits**: Fast, deterministic, no API costs, sophisticated decision-making
+
+### Detailed Logger (`utils/detailedLogger.js`)
+**Responsibility**: Comprehensive game state and AI reasoning capture
+- **Features**: Player action logging, game state transitions, AI decision tracking
+- **Export**: Game logs for analysis and debugging
+- **Integration**: Seamless with existing game flow
 
 ## 🎮 Game Logic Architecture
 
@@ -155,6 +195,35 @@ try {
 2. Update `getAvailableProviders()` method
 3. Add provider-specific API integration
 4. Test with actual API keys
+
+### Debugging UI Issues
+1. Use browser dev tools to inspect elements
+2. Check CSS layout constraints (height, overflow)
+3. Verify all expected elements are being rendered
+4. Test responsive design across screen sizes
+
+## 🔧 Recent Improvements
+
+### Service Separation (Latest)
+- **Extracted Mock AI**: Moved 280+ lines from `llmService.js` to dedicated `mockAIService.js`
+- **Improved Architecture**: Clean separation of concerns between LLM integration and mock AI logic
+- **Better Maintainability**: Each service has single responsibility and clear interface
+
+### Logging System Enhancement
+- **Enhanced GameLog UI**: Hand selection dropdown for better navigation
+- **Detailed Hand Evaluations**: Specific hand descriptions at showdown (e.g., "Full House, Kings over Eights")
+- **Backend Logging**: Comprehensive DetailedLogger for AI reasoning capture and game analysis
+- **Export Capabilities**: Ready for future LLM integration and performance analysis
+
+### UI Bug Fixes
+- **ActionPanel Height Issue**: Fixed `overflow-hidden` cutting off action buttons in 2x2 grid
+- **Raise Button Visibility**: Resolved CSS layout preventing raise/all-in buttons from displaying
+- **Responsive Grid**: Dynamic grid layout based on number of available actions
+
+### Game Flow Improvements  
+- **AI Action Validation**: Proper showdown state management prevents invalid AI actions
+- **Error Handling**: Comprehensive logging and graceful error recovery
+- **State Management**: Clean Zustand patterns with proper action validation
 
 ## 📝 Slash Commands for Claude
 
