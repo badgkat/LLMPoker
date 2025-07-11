@@ -12,7 +12,7 @@ import {
   DEFAULT_SETTINGS, 
   PLAYER_ACTIONS 
 } from '../constants/gameConstants.js';
-import { AI_STRATEGIES } from '../constants/aiConstants.js';
+import { AI_STRATEGIES, AI_PERSONALITY_PROFILES } from '../constants/aiConstants.js';
 
 /**
  * @typedef {import('../store/types.js').GameState} GameState
@@ -86,8 +86,8 @@ export class GameEngine {
       if (!ai.name || typeof ai.name !== 'string') {
         throw new Error(`INITIALIZATION ERROR: AI player ${index} has invalid name`);
       }
-      if (!ai.strategy || typeof ai.strategy !== 'string') {
-        throw new Error(`INITIALIZATION ERROR: AI player ${index} has invalid strategy`);
+      if (!ai.personality || typeof ai.personality !== 'string') {
+        throw new Error(`INITIALIZATION ERROR: AI player ${index} has invalid personality`);
       }
     });
     
@@ -116,17 +116,10 @@ export class GameEngine {
     const players = [
       humanPlayer,
       ...playerSetup.aiPlayers.map((ai, index) => {
-        let actualStrategy = ai.strategy;
-        if (ai.strategy === AI_STRATEGIES.RANDOMLY_DETERMINED) {
-          const availableStrategies = [
-            AI_STRATEGIES.AGGRESSIVE, 
-            AI_STRATEGIES.TIGHT, 
-            AI_STRATEGIES.MATHEMATICAL, 
-            AI_STRATEGIES.RANDOM, 
-            AI_STRATEGIES.POSITIONAL, 
-            AI_STRATEGIES.BALANCED
-          ];
-          actualStrategy = availableStrategies[Math.floor(Math.random() * availableStrategies.length)];
+        let actualPersonality = ai.personality;
+        if (ai.personality === 'RANDOM') {
+          const availablePersonalities = Object.keys(AI_PERSONALITY_PROFILES);
+          actualPersonality = availablePersonalities[Math.floor(Math.random() * availablePersonalities.length)];
         }
         
         const aiPlayer = {
@@ -140,8 +133,11 @@ export class GameEngine {
           currentBet: 0,
           hasActed: false,
           isAllIn: false,
-          strategy: ai.strategy,
-          actualStrategy: actualStrategy
+          personality: ai.personality,
+          actualPersonality: actualPersonality,
+          // Keep strategy for backward compatibility during transition
+          strategy: ai.strategy || 'balanced',
+          actualStrategy: ai.strategy || 'balanced'
         };
         
         return aiPlayer;
@@ -744,20 +740,6 @@ export class GameEngine {
     const activePlayers = gameState.players.filter(p => p.isActive);
     const sidePots = calculateSidePots(gameState.players, gameState.pot);
     
-    console.log('Showdown called:', {
-      totalPlayers: gameState.players.length,
-      activePlayers: activePlayers.length,
-      showdownPlayers: showdownPlayers.length,
-      activePlayerNames: activePlayers.map(p => p.name),
-      showdownPlayerNames: showdownPlayers.map(p => p.name),
-      playerStates: gameState.players.map(p => ({
-        name: p.name,
-        isActive: p.isActive,
-        currentBet: p.currentBet,
-        chips: p.chips,
-        hasCards: p.holeCards?.length === 2
-      }))
-    });
     
     this.emit('showdownStarted', { activePlayers, sidePots });
     
@@ -768,13 +750,11 @@ export class GameEngine {
     );
     
     if (playersWhoDidntFold.length === 1) {
-      console.log('Only one player didn\'t fold, ending early');
       return this.endHandEarly(gameState, playersWhoDidntFold[0]);
     }
     
     // If we have multiple players who didn't fold, proceed with showdown
     if (playersWhoDidntFold.length < 2) {
-      console.error('Showdown called with less than 2 players who didn\'t fold:', playersWhoDidntFold);
       // This shouldn't happen, but if it does, find the last remaining player
       const remainingPlayer = gameState.players.find(p => p.chips > 0);
       if (remainingPlayer) {
@@ -788,14 +768,6 @@ export class GameEngine {
       evaluation: evaluateHand(player.holeCards, gameState.communityCards)
     }));
     
-    console.log('Hand evaluations created:', {
-      count: handEvaluations.length,
-      evaluations: handEvaluations.map(he => ({
-        playerName: he.player.name,
-        strength: he.evaluation.strength,
-        description: he.evaluation.description
-      }))
-    });
     
     // Sort by hand strength (highest first)
     handEvaluations.sort((a, b) => b.evaluation.strength - a.evaluation.strength);

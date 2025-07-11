@@ -126,24 +126,12 @@ export const useGameFlow = () => {
       });
 
       // Set showdown data to trigger the sequence
-      console.log('Setting showdown data:', data);
       setShowdownData(data);
-      console.log('Setting showingShowdown to true');
       setGameState({ showingShowdown: true });
-      
-      // Debug: Check if the state was actually set
-      setTimeout(() => {
-        const currentState = useGameStore.getState();
-        console.log('Current gameState after setting showingShowdown:', {
-          showingShowdown: currentState.gameState.showingShowdown,
-          showdownData: currentState.showdownData ? 'EXISTS' : 'NULL'
-        });
-      }, 100);
     });
 
     // Hand ending events
     gameEngine.on('handEndedEarly', (data) => {
-      console.log('Hand ended early:', data);
       const { winner, amount } = data;
       if (winner) {
         addLogEntry(`${winner.name} wins ${amount.toLocaleString()} chips (all others folded) - Total: ${winner.chips.toLocaleString()}`);
@@ -166,7 +154,6 @@ export const useGameFlow = () => {
       
       // Start next hand after delay
       setTimeout(() => {
-        console.log('Starting next hand from early end');
         startNextHand(data.gameState);
       }, 3000);
     });
@@ -308,7 +295,6 @@ export const useGameFlow = () => {
    * @param {Object} showdownData - Showdown data
    */
   const handleShowdownComplete = useCallback((showdownData) => {
-    console.log('Showdown sequence complete, showdownData:', showdownData);
     
     // Show hand summary
     const summary = createHandSummary(showdownData);
@@ -323,7 +309,6 @@ export const useGameFlow = () => {
     
     // Start next hand after delay
     setTimeout(() => {
-      console.log('Starting next hand from showdown complete');
       startNextHand(showdownData.gameState);
     }, 3000);
   }, [createHandSummary, setHandSummary, setShowdownData, setGameState, startNextHand]);

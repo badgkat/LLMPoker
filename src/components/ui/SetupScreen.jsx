@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useGameStore } from '../../store/gameStore.js';
-import { AI_STRATEGIES, AI_STRATEGY_DESCRIPTIONS } from '../../constants/aiConstants.js';
+import { AI_PERSONALITY_PROFILES, AI_STRATEGIES, AI_STRATEGY_DESCRIPTIONS } from '../../constants/aiConstants.js';
 import { llmService } from '../../services/llmService.js';
 import ThemeToggle from './ThemeToggle.jsx';
 import LLMSettings from '../settings/LLMSettings.jsx';
@@ -28,10 +28,10 @@ const SetupScreen = ({ darkMode = false, onGameStart, onToggleTheme }) => {
     setPlayerSetup({ ...playerSetup, aiPlayers: updatedPlayers });
   }, [playerSetup, setPlayerSetup]);
 
-  const updatePlayerStrategy = useCallback((index, strategy) => {
+  const updatePlayerPersonality = useCallback((index, personalityKey) => {
     if (!playerSetup?.aiPlayers) return;
     const updatedPlayers = [...playerSetup.aiPlayers];
-    updatedPlayers[index] = { ...updatedPlayers[index], strategy };
+    updatedPlayers[index] = { ...updatedPlayers[index], personality: personalityKey };
     setPlayerSetup({ ...playerSetup, aiPlayers: updatedPlayers });
   }, [playerSetup, setPlayerSetup]);
 
@@ -76,8 +76,8 @@ const SetupScreen = ({ darkMode = false, onGameStart, onToggleTheme }) => {
         if (!ai.name || typeof ai.name !== 'string') {
           throw new Error(`SETUP ERROR: AI player ${index} has invalid name`);
         }
-        if (!ai.strategy || typeof ai.strategy !== 'string') {
-          throw new Error(`SETUP ERROR: AI player ${index} has invalid strategy`);
+        if (!ai.personality || typeof ai.personality !== 'string') {
+          throw new Error(`SETUP ERROR: AI player ${index} has invalid personality`);
         }
       });
       
@@ -96,33 +96,37 @@ const SetupScreen = ({ darkMode = false, onGameStart, onToggleTheme }) => {
     }
   }, [playerSetup, onGameStart]);
 
-  const getStrategyColor = (strategy) => {
-    switch (strategy) {
-      case AI_STRATEGIES.AGGRESSIVE:
-        return darkMode ? 'text-red-400' : 'text-red-600';
-      case AI_STRATEGIES.TIGHT:
-        return darkMode ? 'text-blue-400' : 'text-blue-600';
-      case AI_STRATEGIES.MATHEMATICAL:
-        return darkMode ? 'text-purple-400' : 'text-purple-600';
-      case AI_STRATEGIES.POSITIONAL:
-        return darkMode ? 'text-green-400' : 'text-green-600';
-      case AI_STRATEGIES.RANDOM:
-        return darkMode ? 'text-yellow-400' : 'text-yellow-600';
-      case AI_STRATEGIES.BALANCED:
-        return darkMode ? 'text-gray-400' : 'text-gray-600';
-      default:
-        return darkMode ? 'text-gray-300' : 'text-gray-700';
+  const getPersonalityColor = (personalityKey) => {
+    const profile = AI_PERSONALITY_PROFILES[personalityKey];
+    if (!profile) return darkMode ? 'text-gray-300' : 'text-gray-700';
+    
+    // Color based on aggression and tightness
+    if (profile.aggression > 0.7) {
+      return darkMode ? 'text-red-400' : 'text-red-600';
+    } else if (profile.tightness > 0.7) {
+      return darkMode ? 'text-blue-400' : 'text-blue-600';
+    } else if (profile.adaptability > 0.7) {
+      return darkMode ? 'text-purple-400' : 'text-purple-600';
+    } else if (profile.riskTolerance > 0.7) {
+      return darkMode ? 'text-yellow-400' : 'text-yellow-600';
+    } else {
+      return darkMode ? 'text-green-400' : 'text-green-600';
     }
   };
 
-  const getStrategyIcon = (strategy) => {
-    switch (strategy) {
-      case AI_STRATEGIES.AGGRESSIVE: return '🔥';
-      case AI_STRATEGIES.TIGHT: return '🛡️';
-      case AI_STRATEGIES.MATHEMATICAL: return '🧮';
-      case AI_STRATEGIES.POSITIONAL: return '🎯';
-      case AI_STRATEGIES.RANDOM: return '🎲';
-      case AI_STRATEGIES.BALANCED: return '⚖️';
+  const getPersonalityIcon = (personalityKey) => {
+    switch (personalityKey) {
+      case 'NITS': return '🐌';
+      case 'ROCK': return '🪨';
+      case 'TAG': return '🎯';
+      case 'LAG': return '🔥';
+      case 'CALLING_STATION': return '📞';
+      case 'MANIAC': return '🌪️';
+      case 'FISH': return '🐟';
+      case 'SHARK': return '🦈';
+      case 'PROFESSOR': return '🧮';
+      case 'GAMBLER': return '🎲';
+      case 'RANDOM': return '🎰';
       default: return '🤖';
     }
   };
@@ -255,30 +259,49 @@ const SetupScreen = ({ darkMode = false, onGameStart, onToggleTheme }) => {
                   
                   <div>
                     <label className={`block text-sm font-medium mb-1 ${themeClasses.subText}`}>
-                      Strategy:
+                      Personality:
                     </label>
                     <select 
-                      value={ai.strategy}
-                      onChange={(e) => updatePlayerStrategy(index, e.target.value)}
+                      value={ai.personality || 'RANDOM'}
+                      onChange={(e) => updatePlayerPersonality(index, e.target.value)}
                       className={`${themeClasses.input} rounded px-3 py-2 w-full border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                       onMouseEnter={() => setSelectedAI(index)}
                       onMouseLeave={() => setSelectedAI(null)}
                     >
-                      {Object.entries(AI_STRATEGIES).map(([, strategy]) => (
-                        <option key={strategy} value={strategy}>
-                          {getStrategyIcon(strategy)} {strategy === 'randomly-determined' ? 'Random Strategy' : strategy.charAt(0).toUpperCase() + strategy.slice(1)}
+                      <option value="RANDOM">🎰 Random Personality</option>
+                      {Object.entries(AI_PERSONALITY_PROFILES).map(([key, profile]) => (
+                        <option key={key} value={key}>
+                          {getPersonalityIcon(key)} {profile.name}
                         </option>
                       ))}
                     </select>
                     
-                    {/* Strategy Description */}
-                    <div className={`mt-2 text-xs ${getStrategyColor(ai.strategy)} min-h-[2.5rem]`}>
-                      {selectedAI === index && ai.strategy !== AI_STRATEGIES.RANDOMLY_DETERMINED ? (
-                        AI_STRATEGY_DESCRIPTIONS[ai.strategy]
+                    {/* Personality Description with 4D Ratings */}
+                    <div className={`mt-2 text-xs min-h-[3rem]`}>
+                      {selectedAI === index && ai.personality && ai.personality !== 'RANDOM' ? (
+                        <div>
+                          <div className={`${getPersonalityColor(ai.personality)} font-medium mb-1`}>
+                            {AI_PERSONALITY_PROFILES[ai.personality]?.description}
+                          </div>
+                          <div className="grid grid-cols-2 gap-1 text-xs">
+                            <div className={themeClasses.subText}>
+                              T: {(AI_PERSONALITY_PROFILES[ai.personality]?.tightness * 100).toFixed(0)}%
+                            </div>
+                            <div className={themeClasses.subText}>
+                              A: {(AI_PERSONALITY_PROFILES[ai.personality]?.aggression * 100).toFixed(0)}%
+                            </div>
+                            <div className={themeClasses.subText}>
+                              Ad: {(AI_PERSONALITY_PROFILES[ai.personality]?.adaptability * 100).toFixed(0)}%
+                            </div>
+                            <div className={themeClasses.subText}>
+                              R: {(AI_PERSONALITY_PROFILES[ai.personality]?.riskTolerance * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        </div>
                       ) : (
                         <span className={`flex items-center gap-1 ${themeClasses.subText}`}>
-                          <span>{getStrategyIcon(ai.strategy)}</span>
-                          <span>{ai.strategy === AI_STRATEGIES.RANDOMLY_DETERMINED ? 'Will be assigned randomly' : 'Hover to see description'}</span>
+                          <span>{getPersonalityIcon(ai.personality || 'RANDOM')}</span>
+                          <span>{ai.personality === 'RANDOM' ? 'Will be assigned randomly' : 'Hover to see 4D ratings'}</span>
                         </span>
                       )}
                     </div>
@@ -288,20 +311,34 @@ const SetupScreen = ({ darkMode = false, onGameStart, onToggleTheme }) => {
             </div>
           </div>
 
-          {/* Strategy Guide */}
+          {/* Personality Guide */}
           <div className="mb-8">
             <h3 className={`text-lg font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              📚 Strategy Guide
+              📚 AI Personality Guide
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
-              {Object.entries(AI_STRATEGIES).filter(([, strategy]) => strategy !== AI_STRATEGIES.RANDOMLY_DETERMINED).map(([, strategy]) => (
-                <div key={strategy} className={`p-2 md:p-3 rounded border ${darkMode ? 'border-gray-600 bg-gray-700/30' : 'border-gray-300 bg-gray-50'}`}>
-                  <div className={`font-medium text-xs md:text-sm flex items-center gap-2 mb-1 ${getStrategyColor(strategy)}`}>
-                    <span>{getStrategyIcon(strategy)}</span>
-                    <span className="capitalize">{strategy}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
+              {Object.entries(AI_PERSONALITY_PROFILES).map(([key, profile]) => (
+                <div key={key} className={`p-2 md:p-3 rounded border ${darkMode ? 'border-gray-600 bg-gray-700/30' : 'border-gray-300 bg-gray-50'}`}>
+                  <div className={`font-medium text-xs md:text-sm flex items-center gap-2 mb-1 ${getPersonalityColor(key)}`}>
+                    <span>{getPersonalityIcon(key)}</span>
+                    <span>{profile.name}</span>
                   </div>
-                  <div className={`text-xs ${themeClasses.subText}`}>
-                    {AI_STRATEGY_DESCRIPTIONS[strategy]}
+                  <div className={`text-xs ${themeClasses.subText} mb-2`}>
+                    {profile.description}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-xs">
+                    <div className={`${themeClasses.subText} flex justify-between`}>
+                      <span>Tight:</span><span>{(profile.tightness * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className={`${themeClasses.subText} flex justify-between`}>
+                      <span>Aggr:</span><span>{(profile.aggression * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className={`${themeClasses.subText} flex justify-between`}>
+                      <span>Adapt:</span><span>{(profile.adaptability * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className={`${themeClasses.subText} flex justify-between`}>
+                      <span>Risk:</span><span>{(profile.riskTolerance * 100).toFixed(0)}%</span>
+                    </div>
                   </div>
                 </div>
               ))}

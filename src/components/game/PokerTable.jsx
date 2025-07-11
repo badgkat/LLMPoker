@@ -79,20 +79,6 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
         />
       )}
       
-      {/* Debug info */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed top-4 right-4 bg-black/80 text-white p-2 text-xs z-50 max-w-xs">
-          <div>Showdown Data: {showdownData ? 'YES' : 'NO'}</div>
-          <div>Showing Showdown: {gameState.showingShowdown ? 'YES' : 'NO'}</div>
-          <div>Phase: {gameState.phase}</div>
-          <div>Processing: {gameState.processingPhase ? 'YES' : 'NO'}</div>
-          <div>Active Player: {gameState.activePlayer}</div>
-          <div>Current Player: {currentPlayer?.name || 'NONE'}</div>
-          <div>Betting Round: {gameState.bettingRound}</div>
-          <div>Hand #: {gameState.handNumber}</div>
-          <div>Active Players: {gameState.players?.filter(p => p.isActive).length || 0}</div>
-        </div>
-      )}
 
       {/* Hand Summary Overlay */}
       <HandSummary 

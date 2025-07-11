@@ -39,7 +39,7 @@ const initialPlayerSetup = {
   aiPlayers: Array(8).fill(null).map((_, i) => ({
     name: `AI Player ${i + 1}`,
     // Remove seat property - it will be assigned by game engine
-    strategy: 'randomly-determined'
+    personality: 'RANDOM'
   }))
 };
 

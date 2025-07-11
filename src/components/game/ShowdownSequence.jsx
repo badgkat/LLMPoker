@@ -18,13 +18,6 @@ const ShowdownSequence = ({ showdownData, darkMode = false, onComplete }) => {
   const { handEvaluations, winners, sidePots, gameState } = showdownData;
   const activePlayers = handEvaluations?.map(he => he.player) || [];
 
-  // Debug log the showdown data
-  console.log('ShowdownSequence render:', {
-    handEvaluations: handEvaluations?.length || 0,
-    winners: winners?.length || 0,
-    activePlayers: activePlayers.length,
-    gameState: gameState?.handNumber
-  });
 
   const themeClasses = darkMode ? {
     overlay: 'bg-black/80',
