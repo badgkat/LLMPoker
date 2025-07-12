@@ -59,7 +59,7 @@ export const useGameStore = create(
     showdownData: null,
     aiMemories: {},
     betAmount: DEFAULT_SETTINGS.BIG_BLIND,
-    darkMode: false,
+    darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
 
     // Actions
     setGameState: (updates) => {

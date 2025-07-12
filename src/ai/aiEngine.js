@@ -2,7 +2,8 @@ import {
   AI_STRATEGIES, 
   AI_PERSONALITY_PROFILES,
   LEGACY_TO_4D_MAPPING,
-  generate4DPersonalityPrompt
+  generate4DPersonalityPrompt,
+  getTournamentStrategy
 } from '../constants/aiConstants.js';
 import { getAvailableActions } from '../utils/pokerLogic.js';
 import { formatCards } from '../utils/deckUtils.js';
@@ -241,6 +242,9 @@ Strategy Guidance:
 - Aggression (${(strategyProfile.aggression * 100).toFixed(0)}%): ${strategyProfile.aggression > 0.6 ? 'Bet and raise frequently, apply pressure' : 'Prefer calling and checking, avoid confrontation'}
 - Adaptability (${(strategyProfile.adaptability * 100).toFixed(0)}%): ${strategyProfile.adaptability > 0.6 ? 'Adjust strategy based on opponents and position' : 'Stick to consistent patterns'}
 - Risk Tolerance (${(strategyProfile.riskTolerance * 100).toFixed(0)}%): ${strategyProfile.riskTolerance > 0.6 ? 'Embrace high variance plays and big pots' : 'Prefer predictable, low variance outcomes'}
+
+Tournament Context (Level ${gameState.tournamentLevel}):
+${this.getTournamentGuidance(gameState.tournamentLevel)}
 
 Note: Burn cards are face down and unknown. Base your decisions on visible cards only.
 
@@ -545,6 +549,26 @@ Your entire response must be valid JSON only.`;
       case totalPlayers - 1: return 'Cutoff';
       default: return `Middle Position (${position})`;
     }
+  }
+
+  /**
+   * Get tournament strategy guidance for current level
+   * @param {number} level - Tournament level
+   * @returns {string} Formatted strategy guidance
+   */
+  getTournamentGuidance(level) {
+    const strategy = getTournamentStrategy(level);
+    
+    return `
+Phase: ${strategy.phase} (${strategy.stackDepth} BB effective)
+Key Focus: ${strategy.keyFocus.join(', ')}
+Strategy Notes:
+• ${strategy.strategy.notes.join('\n• ')}
+Preflop Guidelines:
+- Early Position: ${strategy.strategy.preflop.earlyPosition}
+- Middle Position: ${strategy.strategy.preflop.middlePosition}  
+- Late Position: ${strategy.strategy.preflop.latePosition}
+Postflop Approach: ${strategy.strategy.postflop.general}`;
   }
 
   /**

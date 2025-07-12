@@ -97,7 +97,7 @@ const ActionPanel = ({ darkMode = false }) => {
   }, [setBetAmount, actionCommitted, gameState.tournamentLevel]);
 
   const getActionButtonStyle = useCallback((action) => {
-    const baseStyle = "px-3 py-2 rounded-lg font-bold text-sm transition-all duration-200 transform hover:scale-105 shadow-lg";
+    const baseStyle = "rounded-lg font-bold transition-all duration-200 transform hover:scale-105 shadow-lg";
     
     switch (action) {
       case PLAYER_ACTIONS.FOLD:
@@ -113,7 +113,7 @@ const ActionPanel = ({ darkMode = false }) => {
 
   const getActionLabel = useCallback((action) => {
     switch (action) {
-      case PLAYER_ACTIONS.RAISE:
+      case PLAYER_ACTIONS.RAISE: {
         // In pre-flop, if current bet equals big blind and no one has raised, show "BET"
         const isPreflop = gameState.bettingRound === 'preflop';
         const isFirstRaise = gameState.currentBet === gameState.bigBlind;
@@ -135,7 +135,8 @@ const ActionPanel = ({ darkMode = false }) => {
             <div className="text-xs">({localBetAmount.toLocaleString()})</div>
           </div>
         );
-      case PLAYER_ACTIONS.CALL:
+      }
+      case PLAYER_ACTIONS.CALL: {
         const callAmount = getCallAmount();
         return (
           <div className="text-center">
@@ -143,7 +144,8 @@ const ActionPanel = ({ darkMode = false }) => {
             <div className="text-xs">({callAmount.toLocaleString()})</div>
           </div>
         );
-      case PLAYER_ACTIONS.ALL_IN:
+      }
+      case PLAYER_ACTIONS.ALL_IN: {
         if (actionCommitted && (action === PLAYER_ACTIONS.RAISE || action === PLAYER_ACTIONS.ALL_IN)) {
           return (
             <div className="text-center">
@@ -158,6 +160,7 @@ const ActionPanel = ({ darkMode = false }) => {
             <div className="text-xs">({currentPlayer?.chips.toLocaleString() || 0})</div>
           </div>
         );
+      }
       default:
         return action.toUpperCase();
     }
@@ -234,15 +237,15 @@ const ActionPanel = ({ darkMode = false }) => {
 
   // Main action panel for human player's turn
   return (
-    <div className={`${themeClasses.card} rounded-xl p-3 border h-full flex flex-col`} style={{ minHeight: '250px', maxHeight: '320px' }}>
-      <h3 className={`text-base font-bold mb-2 text-center ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
+    <div className={`${themeClasses.card} rounded-xl p-3 border flex flex-col`}>
+      <h3 className={`text-base font-bold mb-3 text-center ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
         🎯 Your Turn
       </h3>
       
       {/* Bet Amount Controls */}
       {isActionAvailable(PLAYER_ACTIONS.RAISE) && (
-        <div className="mb-2 flex-shrink-0">
-          <label className={`block text-sm font-medium mb-1 ${themeClasses.subText}`}>
+        <div className="mb-3">
+          <label className={`block text-sm font-medium mb-2 ${themeClasses.subText}`}>
             Raise Amount: {localBetAmount.toLocaleString()}
           </label>
           
@@ -254,35 +257,12 @@ const ActionPanel = ({ darkMode = false }) => {
             value={localBetAmount}
             step={getMinBettingIncrement(gameState.tournamentLevel)}
             onChange={(e) => handleBetAmountChange(e.target.value)}
-            className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer mb-2"
             disabled={actionInProgress || isProcessing || actionCommitted}
           />
           
-          {/* Precise input field */}
-          <div className="flex items-center gap-2 mt-1">
-            <input
-              type="number"
-              min={getMinRaiseAmount()}
-              max={getMaxRaiseAmount()}
-              value={localBetAmount}
-              onChange={(e) => handleBetAmountChange(e.target.value)}
-              className={`flex-1 px-2 py-1 text-sm border rounded ${themeClasses.input}`}
-              disabled={actionInProgress || isProcessing || actionCommitted}
-              placeholder="Enter amount..."
-            />
-          </div>
-          
-          <div className={`flex justify-between text-xs mt-1 ${themeClasses.subText}`}>
-            <span>Min: {getMinRaiseAmount().toLocaleString()}</span>
-            <span>Max: {getMaxRaiseAmount().toLocaleString()}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Quick Amount Buttons for Raises */}
-      {isActionAvailable(PLAYER_ACTIONS.RAISE) && (
-        <div className="mb-2 flex-shrink-0">
-          <div className="grid grid-cols-3 gap-1">
+          {/* Quick Amount Buttons */}
+          <div className="grid grid-cols-3 gap-2 mb-2">
             {[
               { label: 'Min', amount: getMinRaiseAmount() },
               { label: '1/2 Pot', amount: Math.min(gameState.currentBet + Math.floor(gameState.pot * 0.5), getMaxRaiseAmount()) },
@@ -298,33 +278,26 @@ const ActionPanel = ({ darkMode = false }) => {
               </button>
             ))}
           </div>
+          
+          <div className={`flex justify-between text-xs ${themeClasses.subText}`}>
+            <span>Min: {getMinRaiseAmount().toLocaleString()}</span>
+            <span>Max: {getMaxRaiseAmount().toLocaleString()}</span>
+          </div>
         </div>
       )}
 
       {/* Game Info */}
-      <div className={`mb-2 text-xs ${themeClasses.subText} flex-shrink-0`}>
+      <div className={`mb-3 text-xs ${themeClasses.subText}`}>
         <div className="grid grid-cols-2 gap-2">
           <div>Pot: {gameState.pot.toLocaleString()}</div>
           <div>To Call: {getCallAmount().toLocaleString()}</div>
           <div>Your Chips: {currentPlayer.chips.toLocaleString()}</div>
           <div>Current Bet: {gameState.currentBet.toLocaleString()}</div>
         </div>
-        
-        {/* Tournament Info */}
-        <div className="mt-1 pt-1 border-t border-gray-300">
-          <div className="flex justify-between items-center">
-            <span>Level {gameState.tournamentLevel} • {getTournamentPhase(gameState.tournamentLevel)}</span>
-            <span>Min Bet: {getMinBettingIncrement(gameState.tournamentLevel)}</span>
-          </div>
-          <div className="flex justify-between items-center mt-1">
-            <span>Blinds: {gameState.smallBlind}/{gameState.bigBlind}</span>
-            {gameState.ante > 0 && <span>Ante: {gameState.ante}</span>}
-          </div>
-        </div>
       </div>
       
       {/* Action Buttons */}
-      <div className="flex-1 flex flex-col justify-end">
+      <div>
         <div className={`grid gap-2 ${availableActions.length <= 2 ? 'grid-cols-2' : availableActions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
           {availableActions.map(action => (
             <button 
@@ -336,7 +309,7 @@ const ActionPanel = ({ darkMode = false }) => {
                   handleAction(action);
                 }
               }}
-              className={getActionButtonStyle(action)}
+              className={`${getActionButtonStyle(action)} px-3 py-2 text-sm`}
               disabled={actionInProgress || isProcessing}
             >
               {getActionLabel(action)}
@@ -346,12 +319,12 @@ const ActionPanel = ({ darkMode = false }) => {
 
         {/* Action Status */}
         {actionCommitted && !actionInProgress && (
-          <div className={`text-center text-xs text-yellow-600 font-medium mt-1`}>
+          <div className={`text-center text-xs text-yellow-600 font-medium mt-2`}>
             ⚠️ Action committed - Click again to confirm (WSOP rule)
           </div>
         )}
         {(actionInProgress || isProcessing) && (
-          <div className={`text-center text-xs ${themeClasses.subText}`}>
+          <div className={`text-center text-xs ${themeClasses.subText} mt-2`}>
             Processing action...
           </div>
         )}

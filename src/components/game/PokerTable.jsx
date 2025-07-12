@@ -87,43 +87,43 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
         onClose={() => setHandSummary(null)}
       />
       
-      {/* Header */}
-      <header className="flex-shrink-0 p-3 z-10">
+      {/* Compact Header */}
+      <header className="flex-shrink-0 p-2 z-10">
         <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-lg font-bold">🎰 WSOP Tournament</h1>
+          <div className="flex items-center space-x-2">
+            <h1 className="text-base font-bold">🎰 WSOP</h1>
             
-            {/* Game Status */}
-            <div className={`${themeClasses.card} rounded-lg px-2 py-1 border backdrop-blur-sm`}>
+            {/* Compact Game Status */}
+            <div className={`${themeClasses.card} rounded px-2 py-0.5 border backdrop-blur-sm`}>
               <div className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                Hand #{gameState.handNumber} • {gameState.bettingRound.toUpperCase()}
+                H{gameState.handNumber} • {gameState.bettingRound.charAt(0).toUpperCase()}
               </div>
             </div>
 
             {/* Active Player Indicator */}
             {currentPlayer && (
-              <div className={`${themeClasses.card} rounded-lg px-2 py-1 border backdrop-blur-sm`}>
+              <div className={`${themeClasses.card} rounded px-2 py-0.5 border backdrop-blur-sm`}>
                 <div className={`text-xs ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
-                  {currentPlayer.isHuman ? '👤 Your Turn' : `🤖 ${currentPlayer.name}`}
+                  {currentPlayer.isHuman ? '👤' : `🤖 ${currentPlayer.name.split(' ')[0]}`}
                 </div>
               </div>
             )}
 
             {/* Processing Indicator */}
             {gameState.processingPhase && (
-              <div className={`${themeClasses.card} rounded-lg px-2 py-1 border backdrop-blur-sm`}>
+              <div className={`${themeClasses.card} rounded px-2 py-0.5 border backdrop-blur-sm`}>
                 <div className={`text-xs ${darkMode ? 'text-blue-400' : 'text-blue-600'} animate-pulse`}>
-                  ⚙️ Processing...
+                  ⚙️
                 </div>
               </div>
             )}
           </div>
           
           <div className="flex items-center gap-2">
-            {/* Game Stats */}
-            <div className={`${themeClasses.card} rounded-lg px-2 py-1 border backdrop-blur-sm`}>
+            {/* Compact Game Stats */}
+            <div className={`${themeClasses.card} rounded px-2 py-0.5 border backdrop-blur-sm`}>
               <div className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                {gameState.players.filter(p => p.isActive).length} players active
+                {gameState.players.filter(p => p.isActive).length}P
               </div>
             </div>
 
@@ -137,8 +137,8 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
       </header>
 
       {/* Main Game Area - Takes remaining space above bottom UI */}
-      <main className="flex-1 relative min-h-[400px] md:min-h-[500px] lg:min-h-[600px]">
-        <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8 lg:p-16">
+      <main className="flex-1 relative min-h-[300px] md:min-h-[400px]">
+        <div className="absolute inset-0 flex items-center justify-center p-2 md:p-4">
           <div className="relative w-full h-full max-w-5xl max-h-4xl">
             
             {/* Table Felt */}
@@ -178,6 +178,7 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
                 isCurrentPlayer={index === gameState.activePlayer}
                 isDealer={index === gameState.dealerButton}
                 darkMode={darkMode}
+                totalPlayers={gameState.players.length}
               />
             ))}
 
@@ -231,24 +232,26 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
       </main>
 
       {/* Bottom UI Panel - Game Log and Action Panel Side by Side */}
-      <footer className="flex-shrink-0 p-2 md:p-3 border-t border-amber-600/30 bg-black/20 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-2 md:gap-4 min-h-[280px] h-auto">
-          
-          {/* Game Log - Left Side */}
-          <div className="flex-1 max-w-full md:max-w-md">
-            <GameLog 
-              darkMode={darkMode}
-              maxHeight={260}
-            />
-          </div>
+      <footer className="flex-shrink-0 p-2 border-t border-amber-600/30 bg-black/20 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col lg:flex-row gap-2 h-auto">
+            
+            {/* Game Log - Left Side or Top on mobile */}
+            <div className="flex-1 lg:max-w-md">
+              <GameLog 
+                darkMode={darkMode}
+                maxHeight={200}
+              />
+            </div>
 
-          {/* Action Panel - Right Side */}
-          <div className="flex-1 max-w-full md:max-w-md min-h-[260px]">
-            <ActionPanel 
-              darkMode={darkMode}
-            />
-          </div>
+            {/* Action Panel - Right Side or Bottom on mobile */}
+            <div className="flex-1 lg:max-w-md">
+              <ActionPanel 
+                darkMode={darkMode}
+              />
+            </div>
 
+          </div>
         </div>
       </footer>
     </div>

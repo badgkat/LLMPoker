@@ -228,6 +228,20 @@ export class GameEngine {
       currentDeck = afterDeal;
     });
 
+    // Post antes first (if applicable)
+    let anteTotal = 0;
+    if (gameState.ante > 0) {
+      activePlayers.forEach(player => {
+        const anteAmount = Math.min(gameState.ante, player.chips);
+        player.chips -= anteAmount;
+        anteTotal += anteAmount;
+        if (anteAmount < gameState.ante) {
+          // Player is short on chips for ante - they go all-in
+          player.isAllIn = true;
+        }
+      });
+    }
+
     // Post blinds
     const sbIndex = (gameState.dealerButton + 1) % activePlayers.length;
     const bbIndex = (gameState.dealerButton + 2) % activePlayers.length;
@@ -246,7 +260,7 @@ export class GameEngine {
       deck: currentDeck,
       burnCards,
       communityCards: [],
-      pot: gameState.smallBlind + gameState.bigBlind,
+      pot: gameState.smallBlind + gameState.bigBlind + anteTotal,
       sidePots: [],
       currentBet: gameState.bigBlind,
       lastRaiseSize: gameState.bigBlind,
@@ -262,7 +276,9 @@ export class GameEngine {
     this.emit('handStarted', { 
       gameState: newState, 
       sbPlayer: activePlayers[sbIndex], 
-      bbPlayer: activePlayers[bbIndex] 
+      bbPlayer: activePlayers[bbIndex],
+      anteTotal,
+      antePerPlayer: gameState.ante
     });
 
     return newState;

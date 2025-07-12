@@ -213,3 +213,44 @@ export const AI_BEHAVIOR_THRESHOLDS = {
   [AI_STRATEGIES.RANDOM]: calculate4DBehaviorThresholds(AI_PERSONALITY_PROFILES.FISH),
   [AI_STRATEGIES.BALANCED]: calculate4DBehaviorThresholds(AI_PERSONALITY_PROFILES.SHARK)
 };
+
+/**
+ * Tournament Strategy Guidance by Level
+ * Provides strategic context for AI decision making based on tournament stage
+ */
+export const TOURNAMENT_STRATEGY = {
+  LEVEL_1: {
+    stackDepth: 300, // Big blinds
+    phase: 'Ultra-patient play',
+    keyFocus: ['Table dynamics', 'Player identification', 'Avoid unnecessary risks'],
+    strategy: {
+      preflop: {
+        earlyPosition: 'Extremely tight - only premium hands (AA-JJ, AK)',
+        middlePosition: 'Tight - add AQ, KQs',
+        latePosition: 'Slightly looser - add suited connectors in favorable spots'
+      },
+      postflop: {
+        general: 'Play fit-or-fold poker with deep stacks',
+        betting: 'Value bet thin, avoid big bluffs',
+        potControl: 'Keep pots small with marginal hands'
+      },
+      notes: [
+        'With 300 BB effective stacks, there is enormous room to maneuver',
+        'Focus on table dynamics and identifying weak players',
+        'Avoid unnecessary risks - preservation is key',
+        'Build image for later levels when stacks get shorter'
+      ]
+    }
+  }
+};
+
+/**
+ * Get tournament strategy guidance for current level
+ * @param {number} level - Tournament level
+ * @returns {Object} Strategy guidance object
+ */
+export function getTournamentStrategy(_level) {
+  // For now, return Level 1 strategy for all levels
+  // Future expansion: add LEVEL_2, LEVEL_3, etc.
+  return TOURNAMENT_STRATEGY.LEVEL_1;
+}

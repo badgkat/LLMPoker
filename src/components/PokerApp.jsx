@@ -54,6 +54,24 @@ const PokerApp = () => {
   }, []);
 
   /**
+   * System dark mode preference listener
+   */
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    const handleThemeChange = (e) => {
+      setDarkMode(e.matches);
+    };
+
+    // Listen for changes in system theme preference
+    mediaQuery.addEventListener('change', handleThemeChange);
+    
+    return () => {
+      mediaQuery.removeEventListener('change', handleThemeChange);
+    };
+  }, [setDarkMode]);
+
+  /**
    * Error boundary effect
    */
   useEffect(() => {

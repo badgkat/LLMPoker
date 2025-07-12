@@ -23,9 +23,10 @@ export const PLAYER_ACTIONS = {
 };
 
 export const DEFAULT_SETTINGS = {
-  INITIAL_CHIPS: 60000,
+  INITIAL_CHIPS: 60000, // 300 big blinds (60,000 ÷ 200 = 300)
   SMALL_BLIND: 100,
   BIG_BLIND: 200,
+  ANTE: 200, // Level 1: 100/200 (200 ante)
   MAX_PLAYERS: 9,
   MAX_ACTIONS_PER_ROUND: 50
 };

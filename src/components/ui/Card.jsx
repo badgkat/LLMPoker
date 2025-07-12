@@ -11,7 +11,7 @@ import { isRedCard } from '../../utils/deckUtils.js';
  * @param {Card} props.card - Card object to display
  * @param {boolean} props.isHidden - Whether to show card back
  * @param {boolean} props.faceDown - Alternative prop for hiding card
- * @param {string} props.size - Size of the card (sm, md, lg)
+ * @param {string} props.size - Size of the card (xs, sm, md, lg)
  * @param {boolean} props.darkMode - Dark mode flag
  * @param {string} props.className - Additional CSS classes
  * @returns {JSX.Element}
@@ -25,6 +25,7 @@ const Card = ({
   className = '' 
 }) => {
   const sizeClasses = {
+    xs: 'w-5 h-7 text-xs',
     sm: 'w-6 h-9 text-xs',
     md: 'w-8 h-12 text-xs',
     lg: 'w-10 h-14 text-sm'

@@ -40,8 +40,8 @@ export const CHIP_DENOMINATIONS = {
  * Early levels use smaller denominations, later levels phase out smaller chips
  */
 export const TOURNAMENT_BLIND_LEVELS = [
-  // Early Stage (T-25 base)
-  { level: 1, smallBlind: 25, bigBlind: 50, ante: 0, duration: 60, chipDenominations: [25, 100, 500, 1000], minBettingIncrement: 25 },
+  // Early Stage (T-25 base) - Level 1: 100/200 (200 ante) - Ultra-patient play with 300 BB starting stack
+  { level: 1, smallBlind: 100, bigBlind: 200, ante: 200, duration: 60, chipDenominations: [25, 100, 500, 1000], minBettingIncrement: 25 },
   { level: 2, smallBlind: 50, bigBlind: 100, ante: 0, duration: 60, chipDenominations: [25, 100, 500, 1000], minBettingIncrement: 25 },
   { level: 3, smallBlind: 75, bigBlind: 150, ante: 0, duration: 60, chipDenominations: [25, 100, 500, 1000], minBettingIncrement: 25 },
   { level: 4, smallBlind: 100, bigBlind: 200, ante: 0, duration: 60, chipDenominations: [25, 100, 500, 1000], minBettingIncrement: 25 },
