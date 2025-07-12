@@ -15,6 +15,7 @@
  * @property {boolean} isHuman - Whether this is a human player
  * @property {boolean} isActive - Whether player is still in the hand
  * @property {number} currentBet - Current bet amount for this round
+ * @property {number} totalContribution - Total amount contributed to pot this hand
  * @property {boolean} hasActed - Whether player has acted this round
  * @property {boolean} isAllIn - Whether player is all-in
  * @property {string} strategy - AI strategy type

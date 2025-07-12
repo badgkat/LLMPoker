@@ -160,15 +160,39 @@ const evaluatePostFlopHand = (allCards, holeCards) => {
     }
   } else if (detailedRank.isThreeOfAKind) {
     strength = 700 + detailedRank.trips * 10;
+    
+    // Add kicker values for tie-breaking
+    if (detailedRank.kickers && detailedRank.kickers.length > 0) {
+      for (let i = 0; i < Math.min(detailedRank.kickers.length, 2); i++) {
+        strength += (detailedRank.kickers[i] / 15) * (3 - i); // Scale down to prevent overlap
+      }
+    }
+    
     description = `Three of a Kind, ${getCardName(detailedRank.trips)}s`;
   } else if (detailedRank.isTwoPair) {
     strength = 500 + detailedRank.highPair * 5 + detailedRank.lowPair * 2;
+    
+    // Add kicker value for tie-breaking
+    if (detailedRank.kicker) {
+      strength += (detailedRank.kicker / 15) * 2; // Scale down to prevent overlap
+    }
+    
     description = `Two Pair, ${getCardName(detailedRank.highPair)}s over ${getCardName(detailedRank.lowPair)}s`;
     if (detailedRank.kicker) {
       description += ` with ${getCardName(detailedRank.kicker)} kicker`;
     }
   } else if (detailedRank.isPair) {
+    // Base strength for pair, plus kickers for tie-breaking
     strength = 300 + detailedRank.pair * 10;
+    
+    // Add kicker values to ensure different strengths for different kickers
+    if (detailedRank.kickers && detailedRank.kickers.length > 0) {
+      // First kicker worth up to 9 points, second worth up to 8, etc.
+      for (let i = 0; i < Math.min(detailedRank.kickers.length, 3); i++) {
+        strength += (detailedRank.kickers[i] / 15) * (9 - i); // Scale down to prevent overlap with next pair rank
+      }
+    }
+    
     description = `Pair of ${getCardName(detailedRank.pair)}s`;
     if (detailedRank.kickers && detailedRank.kickers.length > 0) {
       description += ` with ${getCardName(detailedRank.kickers[0])} kicker`;
@@ -176,6 +200,14 @@ const evaluatePostFlopHand = (allCards, holeCards) => {
   } else {
     // High card hand
     strength = 100 + detailedRank.highCard * 5;
+    
+    // Add kicker values for tie-breaking
+    if (detailedRank.kickers && detailedRank.kickers.length > 0) {
+      for (let i = 0; i < Math.min(detailedRank.kickers.length, 4); i++) {
+        strength += (detailedRank.kickers[i] / 15) * (4 - i); // Scale down to prevent overlap
+      }
+    }
+    
     description = `${getCardName(detailedRank.highCard)} high`;
     if (detailedRank.kickers && detailedRank.kickers.length > 0) {
       description += `, ${getCardName(detailedRank.kickers[0])} kicker`;
@@ -348,7 +380,11 @@ const getDetailedHandRank = (cards) => {
   } else if (counts[0] === 3) {
     result.isThreeOfAKind = true;
     result.trips = ranksByCount[0].rank;
-    result.kickers = ranksByCount.slice(1).map(r => r.rank).slice(0, 2);
+    // Get kickers sorted by rank (highest first) for proper tie-breaking
+    result.kickers = ranksByCount.slice(1)
+      .map(r => r.rank)
+      .sort((a, b) => b - a)
+      .slice(0, 2);
   } else if (counts[0] === 2 && counts[1] === 2) {
     result.isTwoPair = true;
     result.highPair = ranksByCount[0].rank;
@@ -357,7 +393,11 @@ const getDetailedHandRank = (cards) => {
   } else if (counts[0] === 2) {
     result.isPair = true;
     result.pair = ranksByCount[0].rank;
-    result.kickers = ranksByCount.slice(1).map(r => r.rank).slice(0, 3);
+    // Get kickers sorted by rank (highest first) for proper tie-breaking
+    result.kickers = ranksByCount.slice(1)
+      .map(r => r.rank)
+      .sort((a, b) => b - a)
+      .slice(0, 3);
   } else {
     // High card
     result.kickers = uniqueRanks.slice(1, 5);
@@ -418,23 +458,23 @@ export const calculateSidePots = (players, mainPot) => {
     return [{ amount: mainPot, eligiblePlayers: activePlayers.map(p => p.id) }];
   }
 
-  // Sort by total contribution (currentBet)
-  const sortedPlayers = [...activePlayers].sort((a, b) => a.currentBet - b.currentBet);
+  // Sort by total contribution across the entire hand
+  const sortedPlayers = [...activePlayers].sort((a, b) => a.totalContribution - b.totalContribution);
   const pots = [];
-  let previousBet = 0;
+  let previousContribution = 0;
 
   sortedPlayers.forEach((player, index) => {
-    const betLevel = player.currentBet;
-    if (betLevel > previousBet) {
-      const potContribution = (betLevel - previousBet) * (sortedPlayers.length - index);
+    const contributionLevel = player.totalContribution;
+    if (contributionLevel > previousContribution) {
+      const potAmount = (contributionLevel - previousContribution) * (sortedPlayers.length - index);
       const eligiblePlayers = sortedPlayers.slice(index).map(p => p.id);
       
       pots.push({
-        amount: potContribution,
+        amount: potAmount,
         eligiblePlayers: eligiblePlayers
       });
       
-      previousBet = betLevel;
+      previousContribution = contributionLevel;
     }
   });
 

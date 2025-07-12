@@ -113,6 +113,7 @@ export class GameEngine {
       isHuman: true,
       isActive: true,
       currentBet: 0,
+      totalContribution: 0,
       hasActed: false,
       isAllIn: false,
       strategy: null,
@@ -138,6 +139,7 @@ export class GameEngine {
           isHuman: false,
           isActive: true,
           currentBet: 0,
+          totalContribution: 0,
           hasActed: false,
           isAllIn: false,
           personality: ai.personality,
@@ -222,6 +224,7 @@ export class GameEngine {
       const { cards, remainingDeck: afterDeal } = dealCards(currentDeck, 2);
       player.holeCards = cards;
       player.currentBet = 0;
+      player.totalContribution = 0;
       player.hasActed = false;
       player.isAllIn = false;
       player.isActive = true;
@@ -234,6 +237,7 @@ export class GameEngine {
       activePlayers.forEach(player => {
         const anteAmount = Math.min(gameState.ante, player.chips);
         player.chips -= anteAmount;
+        player.totalContribution += anteAmount;
         anteTotal += anteAmount;
         if (anteAmount < gameState.ante) {
           // Player is short on chips for ante - they go all-in
@@ -248,8 +252,10 @@ export class GameEngine {
     
     activePlayers[sbIndex].chips -= gameState.smallBlind;
     activePlayers[sbIndex].currentBet = gameState.smallBlind;
+    activePlayers[sbIndex].totalContribution += gameState.smallBlind;
     activePlayers[bbIndex].chips -= gameState.bigBlind;
     activePlayers[bbIndex].currentBet = gameState.bigBlind;
+    activePlayers[bbIndex].totalContribution += gameState.bigBlind;
 
     // Determine first to act (UTG)
     const firstToAct = (gameState.dealerButton + 3) % activePlayers.length;
@@ -385,6 +391,7 @@ export class GameEngine {
         if (callAmount > 0) {
           player.chips -= callAmount;
           player.currentBet += callAmount;
+          player.totalContribution += callAmount;
           newPot += callAmount;
           if (player.chips === 0) {
             player.isAllIn = true;
@@ -402,6 +409,7 @@ export class GameEngine {
         player.chips = raiseResult.chips;
         player.currentBet = raiseResult.currentBet;
         player.isAllIn = raiseResult.isAllIn;
+        player.totalContribution += raiseResult.potIncrease;
         newPot += raiseResult.potIncrease;
         newCurrentBet = raiseResult.newCurrentBet;
         newLastRaiseSize = raiseResult.newLastRaiseSize;
@@ -413,6 +421,7 @@ export class GameEngine {
         player.chips = 0;
         player.currentBet = allInResult.newCurrentBet;
         player.isAllIn = true;
+        player.totalContribution += allInResult.potIncrease;
         newPot += allInResult.potIncrease;
         newCurrentBet = Math.max(newCurrentBet, allInResult.newCurrentBet);
         if (allInResult.isFullRaise) {
