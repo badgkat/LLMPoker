@@ -19,10 +19,10 @@ import ThemeToggle from '../ui/ThemeToggle.jsx';
  */
 const PokerTable = ({ darkMode = false, onToggleTheme }) => {
   const { gameState, setHandSummary, showdownData, handSummary } = useGameStore();
-  const { processAIAction, currentPlayer } = usePlayerActions();
+  const { processAIAction, currentPlayer, executePlayerAction } = usePlayerActions();
   const { handleShowdownComplete } = useGameFlow();
 
-  // Handle AI player actions
+  // Handle AI player actions with error protection
   useEffect(() => {
     if (gameState.phase === 'playing' && currentPlayer && !currentPlayer.isHuman && currentPlayer.isActive && !currentPlayer.isAllIn && !gameState.processingPhase) {
       const delay = 1500 + Math.random() * 1000; // Random delay for realism
@@ -36,8 +36,14 @@ const PokerTable = ({ darkMode = false, onToggleTheme }) => {
           console.error('Current player:', currentPlayer);
           console.error('Game state:', gameState);
           
-          // Let the error bubble up to be handled by error boundary
-          throw error;
+          // Don't throw error to prevent infinite loop - instead force fold
+          console.warn('Forcing AI to fold due to action error');
+          try {
+            // Force the AI to fold as fallback
+            await executePlayerAction('fold', 0);
+          } catch (fallbackError) {
+            console.error('Even fallback fold failed:', fallbackError);
+          }
         }
       }, delay);
 
