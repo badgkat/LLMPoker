@@ -157,12 +157,7 @@ export const usePlayerActions = () => {
         });
         throw new Error(`AI_ACTION_ERROR: AI chose invalid action ${decision.action}. Available: ${availableActions.join(', ')}`);
       }
-      
-      // Execute the AI's decision - add debugging
-      console.log('AI Decision object:', decision);
-      console.log('Action type:', typeof decision.action, 'Action value:', decision.action);
-      console.log('Amount type:', typeof decision.amount, 'Amount value:', decision.amount);
-      
+            
       // Ensure we're passing strings/numbers, not objects
       const actionString = String(decision.action);
       const actionAmount = Number(decision.amount || 0);
