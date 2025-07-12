@@ -187,9 +187,10 @@ const evaluatePostFlopHand = (allCards, holeCards) => {
     
     // Add kicker values to ensure different strengths for different kickers
     if (detailedRank.kickers && detailedRank.kickers.length > 0) {
-      // First kicker worth up to 9 points, second worth up to 8, etc.
+      // First kicker much more important than subsequent kickers
       for (let i = 0; i < Math.min(detailedRank.kickers.length, 3); i++) {
-        strength += (detailedRank.kickers[i] / 15) * (9 - i); // Scale down to prevent overlap with next pair rank
+        const kickerWeight = i === 0 ? 9 : (i === 1 ? 2 : 0.5);
+        strength += (detailedRank.kickers[i] / 15) * kickerWeight;
       }
     }
     
@@ -201,10 +202,12 @@ const evaluatePostFlopHand = (allCards, holeCards) => {
     // High card hand
     strength = 100 + detailedRank.highCard * 5;
     
-    // Add kicker values for tie-breaking
+    // Add kicker values for tie-breaking - first kicker much more important
     if (detailedRank.kickers && detailedRank.kickers.length > 0) {
       for (let i = 0; i < Math.min(detailedRank.kickers.length, 4); i++) {
-        strength += (detailedRank.kickers[i] / 15) * (4 - i); // Scale down to prevent overlap
+        // First kicker worth up to 5 points, subsequent kickers much less
+        const kickerWeight = i === 0 ? 5 : (0.5 / (i + 1));
+        strength += (detailedRank.kickers[i] / 15) * kickerWeight;
       }
     }
     

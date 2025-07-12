@@ -380,11 +380,6 @@ export class MockAIService {
     // Apply risk tolerance and short stack multiplier
     const finalHandStrength = adjustedHandStrength * shortStackMultiplier;
     
-    // Keep minimal debug for hand strength verification
-    if (Math.random() < 0.1) { // Only log 10% of decisions 
-      console.log(`${this.strategyProfile.name} strength: ${finalHandStrength}, thresholds: fold=${foldThreshold}, call=${callThreshold}, raise=${raiseThreshold}`);
-    }
-    
     // Decision logic tree based on 4D strategy (MUCH MORE AGGRESSIVE)
     
     // All-in with premium hands

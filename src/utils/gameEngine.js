@@ -231,24 +231,23 @@ export class GameEngine {
       currentDeck = afterDeal;
     });
 
-    // Post antes first (if applicable)
+    // Post Big Blind Ante (WSOP style)
     let anteTotal = 0;
-    if (gameState.ante > 0) {
-      activePlayers.forEach(player => {
-        const anteAmount = Math.min(gameState.ante, player.chips);
-        player.chips -= anteAmount;
-        player.totalContribution += anteAmount;
-        anteTotal += anteAmount;
-        if (anteAmount < gameState.ante) {
-          // Player is short on chips for ante - they go all-in
-          player.isAllIn = true;
-        }
-      });
+    const bbIndex = (gameState.dealerButton + 2) % activePlayers.length;
+    const bbPlayer = activePlayers[bbIndex];
+
+    if (gameState.ante > 0 && bbPlayer.chips > 0) {
+      const anteAmount = Math.min(gameState.ante, bbPlayer.chips);
+      bbPlayer.chips -= anteAmount;
+      bbPlayer.totalContribution += anteAmount;
+      anteTotal = anteAmount;
+      if (anteAmount < gameState.ante) {
+        bbPlayer.isAllIn = true;
+      }
     }
 
     // Post blinds
     const sbIndex = (gameState.dealerButton + 1) % activePlayers.length;
-    const bbIndex = (gameState.dealerButton + 2) % activePlayers.length;
     
     activePlayers[sbIndex].chips -= gameState.smallBlind;
     activePlayers[sbIndex].currentBet = gameState.smallBlind;
